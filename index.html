@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Creatives · Iris Studio</title>
+<link rel="stylesheet" href="https://unpkg.com/grapesjs@0.21.13/dist/css/grapes.min.css">
+<style>
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #faf9f8; color: #242424;
+  height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ── IRIS HEADER ── */
+.iris-hdr {
+  height: 48px; background: #0078d4;
+  display: flex; align-items: center; flex-shrink: 0; z-index: 300;
+}
+.iris-hdr-logo {
+  width: 220px; flex-shrink: 0;
+  padding: 0 0 0 16px;
+  color: #fff; font-size: 15px; font-weight: 600;
+}
+.iris-hdr-space { flex: 1; }
+.iris-hdr-right {
+  display: flex; align-items: center; gap: 4px; padding-right: 12px;
+}
+.hdr-icon-btn {
+  width: 32px; height: 32px; border-radius: 2px; border: none;
+  background: transparent; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; transition: background .15s;
+}
+.hdr-icon-btn:hover { background: rgba(255,255,255,.15); }
+.hdr-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #005a9e; border: 2px solid rgba(255,255,255,.4);
+  color: #fff; font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  margin-left: 4px;
+}
+
+/* ── APP BODY ── */
+.app-body {
+  display: flex; flex: 1; overflow: hidden;
+}
+
+/* ── LEFT NAV ── */
+.iris-nav {
+  width: 220px; flex-shrink: 0;
+  background: #fff; border-right: 1px solid #edebe9;
+  display: flex; flex-direction: column;
+  overflow: hidden; transition: width .2s;
+  z-index: 200;
+}
+.iris-nav.collapsed { width: 48px; }
+.nav-toggle {
+  height: 40px; border: none; background: transparent;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: #323130; font-size: 16px;
+  transition: background .15s;
+}
+.nav-toggle:hover { background: #f3f2f1; }
+.nav-main { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 8px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px; height: 36px; cursor: pointer;
+  color: #323130; font-size: 13px; white-space: nowrap;
+  border-left: 3px solid transparent; transition: background .12s;
+  text-decoration: none; user-select: none;
+}
+.nav-item:hover { background: #f3f2f1; }
+.nav-item.active {
+  background: #eff6fc; color: #0078d4;
+  border-left-color: #0078d4; font-weight: 600;
+}
+.nav-item .nav-icon { font-size: 16px; flex-shrink: 0; width: 18px; text-align: center; }
+.nav-label { overflow: hidden; }
+.iris-nav.collapsed .nav-label { display: none; }
+.nav-foot {
+  border-top: 1px solid #edebe9; padding: 4px 0;
+}
+
+/* ── MAIN CONTENT ── */
+.main-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── GALLERY VIEW ── */
+#view-gallery { display: flex; flex-direction: column; height: 100%; }
+.gallery-header {
+  padding: 20px 24px 0;
+  border-bottom: 1px solid #edebe9;
+  flex-shrink: 0;
+}
+.gallery-header-top {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+}
+.gallery-title {
+  display: flex; align-items: center; gap: 10px;
+}
+.gallery-title h2 { font-size: 20px; font-weight: 600; }
+.gallery-count {
+  background: #edebe9; color: #605e5c;
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 10px;
+}
+.gallery-search {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid #c8c6c4; border-radius: 2px;
+  padding: 0 10px; height: 32px; width: 260px;
+  background: #fff;
+}
+.gallery-search input {
+  border: none; outline: none; font-size: 13px;
+  font-family: inherit; flex: 1; background: transparent;
+}
+.gallery-search span { color: #a19f9d; font-size: 13px; }
+.gallery-toolbar {
+  display: flex; gap: 8px; padding-bottom: 8px;
+}
+.toolbar-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border: 1px solid #c8c6c4;
+  border-radius: 2px; background: #fff; cursor: pointer;
+  font-size: 13px; font-family: inherit; color: #323130;
+  transition: background .12s, border-color .12s;
+}
+.toolbar-btn:hover { background: #f3f2f1; border-color: #a19f9d; }
+.toolbar-btn.primary {
+  background: #0078d4; border-color: #0078d4; color: #fff;
+}
+.toolbar-btn.primary:hover { background: #106ebe; border-color: #106ebe; }
+.gallery-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.template-card {
+  background: #fff; border: 1px solid #edebe9;
+  border-radius: 4px; overflow: hidden;
+  transition: border-color .15s, box-shadow .15s;
+  cursor: pointer;
+}
+.template-card:hover {
+  border-color: #0078d4;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.card-preview {
+  height: 120px; background: #f3f2f1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; border-bottom: 1px solid #edebe9;
+  overflow: hidden; position: relative;
+}
+.card-preview iframe {
+  width: 200%; height: 200%; transform: scale(0.5); transform-origin: top left;
+  pointer-events: none; border: none;
+}
+.card-body { padding: 12px 14px; }
+.card-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: #201f1e; }
+.card-desc { font-size: 12px; color: #605e5c; margin-bottom: 8px; min-height: 16px; }
+.card-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: #a19f9d;
+}
+.card-actions {
+  display: flex; gap: 4px;
+}
+.card-action-btn {
+  width: 24px; height: 24px; border: none; background: transparent;
+  cursor: pointer; border-radius: 2px; font-size: 13px; color: #605e5c;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s;
+}
+.card-action-btn:hover { background: #f3f2f1; color: #201f1e; }
+.card-action-btn.danger:hover { background: #fde7e9; color: #a4262c; }
+.gallery-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 300px; gap: 12px; color: #605e5c;
+}
+.gallery-empty .empty-icon { font-size: 48px; }
+.gallery-empty p { font-size: 14px; }
+
+/* ── EDITOR VIEW ── */
+#view-editor { display: none; height: 100%; flex-direction: column; }
+#view-editor.active { display: flex; }
+.editor-header {
+  height: 48px; background: #fff;
+  border-bottom: 1px solid #edebe9;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; flex-shrink: 0;
+}
+.editor-back-btn {
+  width: 32px; height: 32px; border: none; background: transparent;
+  cursor: pointer; border-radius: 2px; font-size: 16px; color: #323130;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s;
+}
+.editor-back-btn:hover { background: #f3f2f1; }
+.editor-title { font-size: 15px; font-weight: 600; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.editor-hdr-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border: 1px solid #c8c6c4;
+  border-radius: 2px; background: #fff; cursor: pointer;
+  font-size: 12px; font-family: inherit; color: #323130;
+  white-space: nowrap; transition: background .12s;
+}
+.editor-hdr-btn:hover { background: #f3f2f1; }
+.editor-hdr-btn.primary { background: #0078d4; border-color: #0078d4; color: #fff; }
+.editor-hdr-btn.primary:hover { background: #106ebe; }
+.editor-subject {
+  height: 38px; background: #faf9f8;
+  border-bottom: 1px solid #edebe9;
+  display: flex; align-items: center;
+  padding: 0 16px; gap: 8px; flex-shrink: 0;
+}
+.editor-subject label { font-size: 12px; font-weight: 600; color: #323130; white-space: nowrap; }
+.editor-subject input {
+  flex: 1; border: none; background: transparent;
+  font-size: 13px; font-family: inherit; outline: none; color: #242424;
+}
+.editor-body {
+  flex: 1; overflow: hidden;
+  display: flex;
+}
+#gjs { flex: 1; overflow: hidden; }
+
+/* ── RIGHT PANEL ── */
+.right-panel {
+  width: 300px; flex-shrink: 0;
+  background: #fff; border-left: 1px solid #edebe9;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.rp-tabs {
+  display: flex; border-bottom: 1px solid #edebe9; flex-shrink: 0;
+}
+.rp-tab {
+  flex: 1; padding: 10px 6px; text-align: center;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border-bottom: 2px solid transparent; color: #605e5c;
+  transition: color .12s, border-color .12s;
+}
+.rp-tab.active { color: #0078d4; border-bottom-color: #0078d4; }
+.rp-tab:hover:not(.active) { color: #323130; }
+.rp-body { flex: 1; overflow-y: auto; padding: 16px; }
+.rp-section { margin-bottom: 20px; }
+.rp-section-title {
+  font-size: 12px; font-weight: 600; color: #323130;
+  margin-bottom: 10px; text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.rp-label { font-size: 12px; color: #605e5c; margin-bottom: 4px; display: block; }
+.rp-input {
+  width: 100%; padding: 6px 8px; border: 1px solid #c8c6c4;
+  border-radius: 2px; font-size: 13px; font-family: inherit;
+  outline: none; background: #fff; color: #242424;
+}
+.rp-input:focus { border-color: #0078d4; }
+.rp-textarea {
+  width: 100%; padding: 6px 8px; border: 1px solid #c8c6c4;
+  border-radius: 2px; font-size: 13px; font-family: inherit;
+  outline: none; resize: vertical; min-height: 72px;
+  background: #fff; color: #242424;
+}
+.rp-textarea:focus { border-color: #0078d4; }
+.rp-btn {
+  width: 100%; padding: 7px 12px; border: 1px solid #c8c6c4;
+  border-radius: 2px; font-size: 13px; font-family: inherit;
+  background: #fff; cursor: pointer; color: #323130;
+  transition: background .12s; margin-top: 6px;
+}
+.rp-btn:hover { background: #f3f2f1; }
+.rp-btn.primary { background: #0078d4; border-color: #0078d4; color: #fff; }
+.rp-btn.primary:hover { background: #106ebe; }
+.preset-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.preset-chip {
+  padding: 3px 10px; border-radius: 12px;
+  background: #edebe9; border: 1px solid #d2d0ce;
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  transition: background .12s;
+}
+.preset-chip:hover, .preset-chip.active { background: #deecf9; border-color: #2b88d8; color: #0078d4; }
+.quick-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.qa-btn {
+  padding: 4px 8px; border-radius: 3px;
+  background: #f3f2f1; border: 1px solid #e1dfdd;
+  font-size: 11px; cursor: pointer; transition: background .12s;
+}
+.qa-btn:hover { background: #e1dfdd; }
+.token-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+}
+.token-chip {
+  padding: 2px 8px; border-radius: 10px;
+  background: #edebe9; font-size: 11px;
+  font-family: 'Consolas', monospace; cursor: pointer;
+  transition: background .12s;
+}
+.token-chip:hover { background: #deecf9; }
+.token-default { font-size: 11px; color: #a19f9d; flex: 1; }
+.icon-btn-sm {
+  width: 20px; height: 20px; border: none; background: transparent;
+  cursor: pointer; border-radius: 2px; font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  color: #605e5c; transition: background .12s;
+}
+.icon-btn-sm:hover { background: #f3f2f1; }
+.comment-box {
+  border: 1px solid #edebe9; border-radius: 3px;
+  padding: 10px; margin-bottom: 8px; background: #faf9f8;
+}
+.comment-meta { font-size: 11px; color: #a19f9d; margin-bottom: 4px; }
+.comment-text { font-size: 13px; color: #323130; }
+.version-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border: 1px solid #edebe9;
+  border-radius: 3px; margin-bottom: 6px; background: #faf9f8;
+}
+.version-info .version-num { font-size: 13px; font-weight: 600; }
+.version-info .version-meta { font-size: 11px; color: #a19f9d; }
+.version-revert {
+  font-size: 11px; color: #0078d4; cursor: pointer; border: none;
+  background: transparent; font-family: inherit; padding: 2px 6px;
+  border-radius: 2px; transition: background .12s;
+}
+.version-revert:hover { background: #eff6fc; }
+.undo-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; background: #fff4ce; border: 1px solid #f3d77b;
+  border-radius: 3px; margin-bottom: 10px; font-size: 12px;
+}
+
+/* ── DIALOGS ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  display: none; align-items: center; justify-content: center;
+  z-index: 500;
+}
+.overlay.open { display: flex; }
+.dialog {
+  background: #fff; border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  padding: 24px; min-width: 400px; max-width: 560px; width: 100%;
+  max-height: 80vh; overflow-y: auto;
+}
+.dialog h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.dialog p { font-size: 13px; color: #605e5c; margin-bottom: 16px; }
+.dialog-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block; }
+.dialog-input {
+  width: 100%; padding: 7px 10px; border: 1px solid #c8c6c4;
+  border-radius: 2px; font-size: 13px; font-family: inherit;
+  outline: none; margin-bottom: 12px;
+}
+.dialog-input:focus { border-color: #0078d4; }
+.dialog-textarea {
+  width: 100%; padding: 7px 10px; border: 1px solid #c8c6c4;
+  border-radius: 2px; font-size: 13px; font-family: inherit;
+  outline: none; resize: vertical; min-height: 100px; margin-bottom: 12px;
+}
+.dialog-textarea:focus { border-color: #0078d4; }
+.dialog-tabs { display: flex; gap: 0; margin-bottom: 12px; border-bottom: 1px solid #edebe9; }
+.dialog-tab {
+  padding: 8px 16px; font-size: 13px; cursor: pointer;
+  border-bottom: 2px solid transparent; color: #605e5c;
+}
+.dialog-tab.active { color: #0078d4; border-bottom-color: #0078d4; font-weight: 600; }
+.dialog-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.dialog-btn {
+  padding: 6px 16px; border-radius: 2px; font-size: 13px;
+  font-family: inherit; cursor: pointer; border: 1px solid #c8c6c4;
+  background: #fff; color: #323130; transition: background .12s;
+}
+.dialog-btn:hover { background: #f3f2f1; }
+.dialog-btn.primary { background: #0078d4; border-color: #0078d4; color: #fff; }
+.dialog-btn.primary:hover { background: #106ebe; }
+.dialog-btn.danger { background: #a4262c; border-color: #a4262c; color: #fff; }
+.dialog-btn.danger:hover { background: #8b1f24; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #323130; color: #fff; padding: 10px 20px;
+  border-radius: 3px; font-size: 13px; z-index: 600;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* ── GrapeJS overrides ── */
+.gjs-cv-canvas { background: #f3f2f1 !important; }
+.gjs-frame-wrapper { box-shadow: 0 2px 12px rgba(0,0,0,.12) !important; }
+.gjs-toolbar { background: #0078d4 !important; }
+.gjs-pn-panels { font-family: "Segoe UI", sans-serif !important; font-size: 13px !important; }
+.gjs-pn-btn { color: #fff !important; }
+.gjs-pn-btn.gjs-pn-active { color: #fff !important; background: rgba(255,255,255,.2) !important; }
+.gjs-block { border-color: #e1dfdd !important; }
+.gjs-block:hover { border-color: #0078d4 !important; }
+.gjs-block-label { font-size: 11px !important; color: #323130 !important; }
+.gjs-category-title { background: #f3f2f1 !important; color: #323130 !important; font-size: 11px !important; font-weight: 600 !important; }
+</style>
+</head>
+<body>
+
+<!-- IRIS HEADER -->
+<header class="iris-hdr">
+  <div class="iris-hdr-logo">Iris Studio</div>
+  <div class="iris-hdr-space"></div>
+  <div class="iris-hdr-right">
+    <button class="hdr-icon-btn" title="Notifications">🔔</button>
+    <div class="hdr-avatar" title="kwal@microsoft.com">K</div>
+  </div>
+</header>
+
+<div class="app-body">
+  <!-- LEFT NAV -->
+  <nav class="iris-nav" id="iris-nav">
+    <button class="nav-toggle" id="nav-toggle-btn" title="Collapse navigation">☰</button>
+    <div class="nav-main">
+      <div class="nav-item" onclick="navGo('home')">
+        <span class="nav-icon">🏠</span><span class="nav-label">Home</span>
+      </div>
+      <div class="nav-item" onclick="navGo('campaigns')">
+        <span class="nav-icon">🗺️</span><span class="nav-label">Campaigns</span>
+      </div>
+      <div class="nav-item" onclick="navGo('segments')">
+        <span class="nav-icon">👥</span><span class="nav-label">Segments</span>
+      </div>
+      <div class="nav-item active" id="nav-creatives" onclick="navGo('creatives')">
+        <span class="nav-icon">📄</span><span class="nav-label">Creatives</span>
+      </div>
+      <div class="nav-item" onclick="navGo('surfaces')">
+        <span class="nav-icon">🌐</span><span class="nav-label">Surfaces</span>
+      </div>
+      <div class="nav-item" onclick="navGo('insights')">
+        <span class="nav-icon">📊</span><span class="nav-label">Insights</span>
+      </div>
+    </div>
+    <div class="nav-foot">
+      <div class="nav-item" onclick="navGo('copilot')">
+        <span class="nav-icon">✨</span><span class="nav-label">Iris Copilot (Beta)</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- ── GALLERY VIEW ── -->
+    <div id="view-gallery">
+      <div class="gallery-header">
+        <div class="gallery-header-top">
+          <div class="gallery-title">
+            <h2>Email Creatives</h2>
+            <span class="gallery-count" id="gallery-count">0</span>
+          </div>
+          <div class="gallery-search">
+            <span>🔍</span>
+            <input type="text" id="gallery-search-input" placeholder="Search creatives..." oninput="renderGallery()">
+          </div>
+        </div>
+        <div class="gallery-toolbar">
+          <button class="toolbar-btn primary" onclick="openCreateDialog()">+ New Creative</button>
+          <button class="toolbar-btn" onclick="renderGallery()">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="gallery-body">
+        <div class="gallery-grid" id="gallery-grid"></div>
+        <div class="gallery-empty" id="gallery-empty" style="display:none">
+          <div class="empty-icon">✉️</div>
+          <p id="gallery-empty-msg">No creatives yet.</p>
+          <button class="toolbar-btn primary" onclick="openCreateDialog()" style="margin-top:4px">+ New Creative</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EDITOR VIEW ── -->
+    <div id="view-editor">
+      <div class="editor-header">
+        <button class="editor-back-btn" onclick="showGallery()" title="Back to Gallery">←</button>
+        <div class="editor-title" id="editor-title">Untitled</div>
+        <button class="editor-hdr-btn" onclick="exportHtml()" title="Export HTML">⬇ Export HTML</button>
+        <button class="editor-hdr-btn" onclick="openTestSendDialog()">📧 Test Send</button>
+        <button class="editor-hdr-btn" onclick="showRpTab('ai')">✨ AI Assistant</button>
+        <button class="editor-hdr-btn primary" onclick="saveTemplate()">💾 Save</button>
+      </div>
+      <div class="editor-subject">
+        <label>Subject:</label>
+        <input type="text" id="subject-input" placeholder="Enter email subject line">
+      </div>
+      <div class="editor-body">
+        <div id="gjs"></div>
+        <div class="right-panel">
+          <div class="rp-tabs">
+            <div class="rp-tab active" id="rp-tab-loc" onclick="showRpTab('loc')">Localization</div>
+            <div class="rp-tab" id="rp-tab-ai" onclick="showRpTab('ai')">AI</div>
+            <div class="rp-tab" id="rp-tab-comments" onclick="showRpTab('comments')">Comments</div>
+            <div class="rp-tab" id="rp-tab-history" onclick="showRpTab('history')">History</div>
+          </div>
+          <div class="rp-body" id="rp-body"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-body -->
+
+<!-- ── DIALOG: Create / Import ── -->
+<div class="overlay" id="dlg-create">
+  <div class="dialog">
+    <h3>New Creative</h3>
+    <p>Give your creative a name and choose how to start.</p>
+    <label class="dialog-label">Name</label>
+    <input class="dialog-input" id="create-name" placeholder="e.g. Welcome Email">
+    <label class="dialog-label">Description <span style="font-weight:400;color:#a19f9d">(optional)</span></label>
+    <input class="dialog-input" id="create-desc" placeholder="e.g. Onboarding email for new subscribers">
+    <div class="dialog-tabs">
+      <div class="dialog-tab active" id="create-tab-blank" onclick="setCreateMode('blank')">Blank</div>
+      <div class="dialog-tab" id="create-tab-import" onclick="setCreateMode('import')">Import HTML</div>
+    </div>
+    <div id="create-import-area" style="display:none">
+      <button class="dialog-btn" onclick="document.getElementById('import-file').click()" style="margin-bottom:8px">📁 Upload .html file</button>
+      <input type="file" id="import-file" accept=".html,.htm" style="display:none" onchange="handleImportFile(event)">
+      <textarea class="dialog-textarea" id="import-html" placeholder="Or paste HTML here…"></textarea>
+    </div>
+    <div class="dialog-footer">
+      <button class="dialog-btn primary" onclick="createTemplate()">Create</button>
+      <button class="dialog-btn" onclick="closeDialog('dlg-create')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIALOG: Duplicate ── -->
+<div class="overlay" id="dlg-duplicate">
+  <div class="dialog">
+    <h3>Duplicate Creative</h3>
+    <p>Enter a name for the copy.</p>
+    <label class="dialog-label">Name</label>
+    <input class="dialog-input" id="dup-name">
+    <input type="hidden" id="dup-id">
+    <div class="dialog-footer">
+      <button class="dialog-btn primary" onclick="confirmDuplicate()">Duplicate</button>
+      <button class="dialog-btn" onclick="closeDialog('dlg-duplicate')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIALOG: Delete ── -->
+<div class="overlay" id="dlg-delete">
+  <div class="dialog">
+    <h3>Delete Creative</h3>
+    <p id="delete-msg">Are you sure?</p>
+    <input type="hidden" id="delete-id">
+    <div class="dialog-footer">
+      <button class="dialog-btn danger" onclick="confirmDelete()">Delete</button>
+      <button class="dialog-btn" onclick="closeDialog('dlg-delete')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIALOG: Test Send ── -->
+<div class="overlay" id="dlg-test-send">
+  <div class="dialog">
+    <h3>Send Test Email</h3>
+    <p>Send this creative as a test. Uses the current locale and subject line.</p>
+    <label class="dialog-label">Delivery method</label>
+    <select class="dialog-input" id="ts-method" style="margin-bottom:12px">
+      <option value="ICP">ICP (MUCP Trigger)</option>
+      <option value="IDS">IDS (Direct Delivery)</option>
+    </select>
+    <label class="dialog-label">Recipient email</label>
+    <input class="dialog-input" id="ts-email" type="email" placeholder="e.g. kwal@microsoft.com">
+    <div id="ts-result" style="display:none;padding:8px 10px;border-radius:3px;font-size:13px;margin-bottom:8px"></div>
+    <div class="dialog-footer">
+      <button class="dialog-btn primary" onclick="sendTestEmail()">Send</button>
+      <button class="dialog-btn" onclick="closeDialog('dlg-test-send')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIALOG: Add Token ── -->
+<div class="overlay" id="dlg-token">
+  <div class="dialog">
+    <h3>Add Token</h3>
+    <p>Tokens are inserted as <code style="background:#f3f2f1;padding:1px 5px;border-radius:2px">{{tokenName}}</code> placeholders.</p>
+    <label class="dialog-label">Token name</label>
+    <input class="dialog-input" id="token-name" placeholder="e.g. greeting">
+    <label class="dialog-label">Default value</label>
+    <input class="dialog-input" id="token-default" placeholder="e.g. Hello!">
+    <div class="dialog-footer">
+      <button class="dialog-btn primary" onclick="confirmAddToken()">Add Token</button>
+      <button class="dialog-btn" onclick="closeDialog('dlg-token')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIALOG: Revert version ── -->
+<div class="overlay" id="dlg-revert">
+  <div class="dialog">
+    <h3>Revert to this version?</h3>
+    <p id="revert-msg">This will create a new version with the selected content.</p>
+    <input type="hidden" id="revert-ver">
+    <div class="dialog-footer">
+      <button class="dialog-btn primary" onclick="confirmRevert()">Revert</button>
+      <button class="dialog-btn" onclick="closeDialog('dlg-revert')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/grapesjs@0.21.13/dist/grapes.min.js"></script>
+<script>
+'use strict';
+
+// ── SEED HTML TEMPLATES ───────────────────────────────────────────────────
+
+const SEED_HTML_WELCOME = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f3f2f1;font-family:'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr><td align="center" style="padding:32px 0;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:4px;overflow:hidden;">
+      <tr><td style="background:#0078d4;padding:20px 32px;">
+        <span style="color:#fff;font-size:20px;font-weight:600;">Microsoft 365</span>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <h1 style="margin:0 0 16px;font-size:24px;color:#201f1e;">Welcome, {{FirstName}}!</h1>
+        <p style="margin:0 0 16px;font-size:15px;color:#605e5c;line-height:1.6;">Your Microsoft 365 subscription is now active. Here's everything you need to get started with your new subscription.</p>
+        <table cellpadding="0" cellspacing="0" style="margin:24px 0;">
+          <tr><td style="background:#0078d4;border-radius:2px;padding:10px 24px;">
+            <a href="#" style="color:#fff;font-size:14px;font-weight:600;text-decoration:none;">Get Started</a>
+          </td></tr>
+        </table>
+        <p style="margin:0;font-size:13px;color:#a19f9d;">Questions? Visit <a href="#" style="color:#0078d4;">support.microsoft.com</a></p>
+      </td></tr>
+      <tr><td style="background:#faf9f8;padding:16px 32px;border-top:1px solid #edebe9;">
+        <p style="margin:0;font-size:12px;color:#a19f9d;">© 2025 Microsoft Corporation. One Microsoft Way, Redmond, WA 98052</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+const SEED_HTML_NEWSLETTER = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f3f2f1;font-family:'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr><td align="center" style="padding:32px 0;">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:4px;overflow:hidden;">
+      <tr><td style="background:#0078d4;padding:20px 32px;">
+        <span style="color:#fff;font-size:16px;font-weight:600;">Iris Studio · Monthly Digest</span>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <h2 style="margin:0 0 8px;font-size:20px;color:#201f1e;">What's new in Iris</h2>
+        <p style="margin:0 0 24px;font-size:14px;color:#605e5c;">April 2025</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #edebe9;border-radius:4px;margin-bottom:16px;">
+          <tr><td style="padding:20px;">
+            <h3 style="margin:0 0 8px;font-size:16px;color:#201f1e;">Journey Builder</h3>
+            <p style="margin:0;font-size:14px;color:#605e5c;line-height:1.6;">Design multi-step customer journeys with the new visual builder. Drag nodes, connect steps, and publish in minutes.</p>
+          </td></tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #edebe9;border-radius:4px;margin-bottom:16px;">
+          <tr><td style="padding:20px;">
+            <h3 style="margin:0 0 8px;font-size:16px;color:#201f1e;">AI-Assisted Templates</h3>
+            <p style="margin:0;font-size:14px;color:#605e5c;line-height:1.6;">Generate and refine email HTML with Iris Copilot. Describe what you need, and AI builds a first draft instantly.</p>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="background:#faf9f8;padding:16px 32px;border-top:1px solid #edebe9;">
+        <p style="margin:0;font-size:12px;color:#a19f9d;">You're subscribed to Iris updates. <a href="#" style="color:#0078d4;">Unsubscribe</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+const SEED_HTML_NOTIF = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f3f2f1;font-family:'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr><td align="center" style="padding:32px 0;">
+    <table width="540" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:4px;overflow:hidden;">
+      <tr><td style="background:#0078d4;padding:16px 24px;">
+        <span style="color:#fff;font-size:16px;font-weight:600;">Microsoft</span>
+      </td></tr>
+      <tr><td style="padding:32px 24px;">
+        <p style="margin:0 0 8px;font-size:12px;color:#a19f9d;text-transform:uppercase;letter-spacing:.5px;">Action Required</p>
+        <h1 style="margin:0 0 16px;font-size:22px;color:#201f1e;">{{CampaignName}} is pending approval</h1>
+        <p style="margin:0 0 24px;font-size:14px;color:#605e5c;line-height:1.6;">This campaign has been submitted and is waiting for approval before it can go live.</p>
+        <table cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="background:#0078d4;border-radius:2px;padding:9px 20px;">
+              <a href="#" style="color:#fff;font-size:14px;font-weight:600;text-decoration:none;">Review &amp; Approve</a>
+            </td>
+            <td style="width:8px;"></td>
+            <td style="border:1px solid #8a8886;border-radius:2px;padding:8px 20px;">
+              <a href="#" style="color:#201f1e;font-size:14px;text-decoration:none;">View Details</a>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td style="background:#faf9f8;padding:12px 24px;border-top:1px solid #edebe9;">
+        <p style="margin:0;font-size:12px;color:#a19f9d;">Sent from Iris Studio</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+// ── DATA LAYER ────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'iris_email_builder_v1';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+
+function initDb() {
+  const saved = loadData();
+  if (saved) return saved;
+  const now = new Date();
+  const d = (offset) => new Date(now - offset * 86400000).toISOString();
+  return {
+    templates: [
+      { id:1, name:'Welcome Email', desc:'Onboarding email for new Microsoft 365 subscribers',
+        subject:'Welcome to Microsoft 365, {{FirstName}}!', html: SEED_HTML_WELCOME, gjsData:'',
+        tokens:[], comments:[], versions:[],
+        createdBy:'jsmith', createdAt:d(45), updatedBy:'jsmith', updatedAt:d(10) },
+      { id:2, name:'Monthly Digest', desc:'Monthly product newsletter highlighting new Iris features',
+        subject:"What's new in Iris — April 2025", html: SEED_HTML_NEWSLETTER, gjsData:'',
+        tokens:[], comments:[], versions:[],
+        createdBy:'kwal', createdAt:d(30), updatedBy:'kwal', updatedAt:d(2) },
+      { id:3, name:'Campaign Approval Notification', desc:'Triggered when a campaign is submitted for approval',
+        subject:'Action required: {{CampaignName}} is pending approval', html: SEED_HTML_NOTIF, gjsData:'',
+        tokens:[{id:1,name:'CampaignName',def:'My Campaign'},{id:2,name:'ApproverName',def:'Approver'}],
+        comments:[{id:1,author:'kwal',ts:d(1),text:'Can we make the approve button larger?'}],
+        versions:[],
+        createdBy:'mlopez', createdAt:d(60), updatedBy:'kwal', updatedAt:d(5) },
+    ],
+    nextId: 4,
+    nextTokenId: 10,
+    nextCommentId: 10,
+  };
+}
+
+let db = initDb();
+
+function getTemplate(id) { return db.templates.find(t => t.id === id); }
+function saveTemplate_db(t) {
+  const idx = db.templates.findIndex(x => x.id === t.id);
+  if (idx >= 0) db.templates[idx] = t; else db.templates.push(t);
+  saveData();
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+
+let currentId = null;   // template being edited
+let gjsEditor = null;   // GrapeJS instance
+let createMode = 'blank';
+let currentRpTab = 'loc';
+let aiUndoStack = [];   // previous HTML for undo
+
+// ── NAV ───────────────────────────────────────────────────────────────────
+
+document.getElementById('nav-toggle-btn').addEventListener('click', () => {
+  document.getElementById('iris-nav').classList.toggle('collapsed');
+});
+
+function navGo(page) {
+  if (page !== 'creatives') {
+    toast(`Navigating to ${page} is not available in this prototype.`);
+  }
+}
+
+// ── GALLERY ───────────────────────────────────────────────────────────────
+
+function renderGallery() {
+  const q = (document.getElementById('gallery-search-input').value || '').toLowerCase();
+  const templates = db.templates.filter(t =>
+    !q || t.name.toLowerCase().includes(q) || (t.desc||'').toLowerCase().includes(q) || t.subject.toLowerCase().includes(q)
+  );
+  const grid = document.getElementById('gallery-grid');
+  const empty = document.getElementById('gallery-empty');
+  document.getElementById('gallery-count').textContent = templates.length;
+
+  if (templates.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
+    document.getElementById('gallery-empty-msg').textContent =
+      q ? 'No creatives match your search.' : 'No creatives yet.';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = templates.map(t => {
+    const preview = t.html
+      ? `<iframe srcdoc="${escAttr(t.html)}" tabindex="-1" aria-hidden="true"></iframe>`
+      : `<span>✉️</span>`;
+    const upd = new Date(t.updatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const size = Math.round((t.html||'').length / 1024) || '<1';
+    return `
+      <div class="template-card" onclick="openEditor(${t.id})">
+        <div class="card-preview">${preview}</div>
+        <div class="card-body">
+          <div class="card-name">${esc(t.name)}</div>
+          <div class="card-desc">${esc(t.desc||'')}</div>
+          <div class="card-meta">
+            <span title="Last updated">${upd} · ${esc(t.updatedBy)} · ${size}KB</span>
+            <div class="card-actions" onclick="event.stopPropagation()">
+              <button class="card-action-btn" onclick="openDupDialog(${t.id})" title="Duplicate">⧉</button>
+              <button class="card-action-btn danger" onclick="openDeleteDialog(${t.id})" title="Delete">🗑</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── EDITOR ───────────────────────────────────────────────────────────────
+
+function openEditor(id) {
+  currentId = id;
+  const t = getTemplate(id);
+  document.getElementById('view-gallery').style.display = 'none';
+  const ev = document.getElementById('view-editor');
+  ev.style.display = 'flex';
+  document.getElementById('editor-title').textContent = t.name;
+  document.getElementById('subject-input').value = t.subject || '';
+  aiUndoStack = [];
+  initGjs(t);
+  showRpTab('loc');
+}
+
+function showGallery() {
+  if (gjsEditor) { gjsEditor.destroy(); gjsEditor = null; }
+  currentId = null;
+  aiUndoStack = [];
+  document.getElementById('view-editor').style.display = 'none';
+  document.getElementById('view-gallery').style.display = 'flex';
+  renderGallery();
+}
+
+function initGjs(t) {
+  if (gjsEditor) { gjsEditor.destroy(); gjsEditor = null; }
+  document.getElementById('gjs').innerHTML = '';
+
+  gjsEditor = grapesjs.init({
+    container: '#gjs',
+    fromElement: false,
+    width: '100%',
+    height: '100%',
+    storageManager: false,
+    deviceManager: {
+      devices: [
+        { name:'Desktop', width:'' },
+        { name:'Tablet', width:'768px', widthMedia:'768px' },
+        { name:'Mobile', width:'375px', widthMedia:'375px' },
+      ]
+    },
+    assetManager: {
+      uploadFile(e) {
+        const files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
+        if (!files || !files.length) return;
+        const am = gjsEditor.AssetManager;
+        Array.from(files).forEach(file => {
+          if (!file.type.startsWith('image/')) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            am.add({ src: reader.result, name: file.name, type: 'image' });
+          };
+          reader.readAsDataURL(file);
+        });
+      },
+      autoAdd: true,
+    },
+    plugins: [],
+  });
+
+  registerBlocks(gjsEditor);
+
+  if (t.gjsData) {
+    try { gjsEditor.loadProjectData(JSON.parse(t.gjsData)); } catch { gjsEditor.setComponents(t.html || ''); }
+  } else {
+    gjsEditor.setComponents(t.html || '');
+  }
+
+  gjsEditor.on('canvas:drop', (dt) => {
+    if (!dt || !dt.files) return;
+    Array.from(dt.files).forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = () => gjsEditor.addComponents(`<img src="${reader.result}" alt="${esc(file.name)}" style="display:block;max-width:100%;height:auto;">`);
+      reader.readAsDataURL(file);
+    });
+  });
+}
+
+function registerBlocks(editor) {
+  const bm = editor.BlockManager;
+  const HERO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='200'%3E%3Crect fill='%230078d4' width='600' height='200'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Segoe UI,sans-serif' font-size='20' font-weight='600'%3EHero Image%3C/text%3E%3C/svg%3E";
+  const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect fill='%230078d4' rx='8' width='72' height='72'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Segoe UI,sans-serif' font-size='11'%3EIcon%3C/text%3E%3C/svg%3E";
+
+  bm.add('ms-header', { label:'Header + Hero', category:'Email Sections', content:`
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;margin:0 auto;">
+      <tr><td style="background:#0078d4;padding:16px 24px;"><span style="color:#fff;font-size:18px;font-weight:600;">Microsoft 365</span></td></tr>
+      <tr><td style="padding:0;"><img width="600" src="${HERO}" alt="Hero image" style="display:block;width:100%;height:auto;border:0;"></td></tr>
+    </table>` });
+
+  bm.add('content-section', { label:'Content Section', category:'Email Sections', content:`
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;margin:0 auto;">
+      <tr><td style="padding:24px;">
+        <h1 style="font-family:'Segoe UI',sans-serif;color:#242424;font-size:28px;font-weight:600;margin:0 0 12px;">Main Heading</h1>
+        <p style="font-family:'Segoe UI',sans-serif;color:#424242;font-size:16px;line-height:24px;margin:0;">Your content goes here. This is the main body text of your email creative.</p>
+      </td></tr>
+    </table>` });
+
+  bm.add('email-footer', { label:'Email Footer', category:'Email Sections', content:`
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;margin:0 auto;background:#f2f2f2;">
+      <tr><td style="padding:20px 24px;font-family:'Segoe UI',sans-serif;font-size:12px;color:#424242;line-height:18px;">
+        <p style="margin:0 0 8px;"><a href="#" style="color:#0078d4;">Unsubscribe</a> · <a href="#" style="color:#0078d4;">Privacy Statement</a></p>
+        <p style="margin:0;">Microsoft Corporation, One Microsoft Way, Redmond, WA 98052</p>
+      </td></tr>
+    </table>` });
+
+  bm.add('sidebar-layout', { label:'Sidebar Layout', category:'Email Sections', content:`
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;margin:0 auto;">
+      <tr>
+        <td width="30%" style="padding:16px;vertical-align:top;background:#f5f5f5;font-family:'Segoe UI',sans-serif;font-size:14px;color:#424242;">Sidebar</td>
+        <td width="70%" style="padding:16px;vertical-align:top;font-family:'Segoe UI',sans-serif;font-size:16px;color:#424242;line-height:24px;">Main content area</td>
+      </tr>
+    </table>` });
+
+  bm.add('cta-button', { label:'CTA Button', category:'Email Elements', content:`
+    <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:16px auto;">
+      <tr><td style="padding:12px 24px;">
+        <a href="#" style="display:inline-block;padding:12px 20px;border-radius:2px;background:#0078d4;color:#fff;font-family:'Segoe UI',sans-serif;font-size:14px;font-weight:600;text-decoration:none;">Call to Action</a>
+      </td></tr>
+    </table>` });
+
+  bm.add('feature-card', { label:'Feature Card', category:'Email Elements', content:`
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;margin:0 auto;">
+      <tr><td style="padding:20px;">
+        <table border="0" cellspacing="0" cellpadding="0">
+          <tr>
+            <td style="padding-right:16px;vertical-align:top;"><img src="${ICON}" width="72" height="72" alt="Feature icon" style="display:block;border:0;border-radius:8px;"></td>
+            <td style="vertical-align:top;">
+              <h3 style="font-family:'Segoe UI',sans-serif;color:#242424;font-size:16px;font-weight:600;margin:0 0 8px;">Feature Title</h3>
+              <p style="font-family:'Segoe UI',sans-serif;color:#424242;font-size:15px;line-height:22px;margin:0;">Feature description goes here.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>` });
+
+  bm.add('spacer', { label:'Spacer', category:'Email Elements', content:`
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;margin:0 auto;">
+      <tr><td style="height:24px;line-height:24px;font-size:1px;">&nbsp;</td></tr>
+    </table>` });
+
+  bm.add('two-columns', { label:'Two Columns', category:'Email Sections', content:`
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;margin:0 auto;">
+      <tr>
+        <td width="50%" style="padding:16px;vertical-align:top;font-family:'Segoe UI',sans-serif;font-size:14px;color:#424242;line-height:21px;">Left column content</td>
+        <td width="50%" style="padding:16px;vertical-align:top;font-family:'Segoe UI',sans-serif;font-size:14px;color:#424242;line-height:21px;">Right column content</td>
+      </tr>
+    </table>` });
+}
+
+// ── SAVE ─────────────────────────────────────────────────────────────────
+
+function saveTemplate() {
+  if (!gjsEditor || !currentId) return;
+  const t = getTemplate(currentId);
+  const html = gjsEditor.getHtml() + '<style>' + gjsEditor.getCss() + '</style>';
+  const gjsData = JSON.stringify(gjsEditor.getProjectData());
+  const subject = document.getElementById('subject-input').value;
+
+  // Push to version history
+  t.versions = t.versions || [];
+  t.versions.unshift({
+    ver: (t.versions[0]?.ver || 0) + 1,
+    html: t.html, gjsData: t.gjsData,
+    savedBy: 'kwal', savedAt: new Date().toISOString(),
+  });
+  if (t.versions.length > 20) t.versions = t.versions.slice(0, 20);
+
+  t.html = html;
+  t.gjsData = gjsData;
+  t.subject = subject;
+  t.updatedBy = 'kwal';
+  t.updatedAt = new Date().toISOString();
+  saveTemplate_db(t);
+  toast('Creative saved ✓');
+  if (currentRpTab === 'history') renderRpHistory();
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveTemplate();
+  }
+});
+
+// ── EXPORT ───────────────────────────────────────────────────────────────
+
+function exportHtml() {
+  if (!gjsEditor) return;
+  const html = gjsEditor.getHtml() + '<style>' + gjsEditor.getCss() + '</style>';
+  const t = getTemplate(currentId);
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (t?.name || 'creative') + '.html';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ── RIGHT PANEL ───────────────────────────────────────────────────────────
+
+function showRpTab(tab) {
+  currentRpTab = tab;
+  ['loc','ai','comments','history'].forEach(id => {
+    document.getElementById('rp-tab-' + id).classList.toggle('active', id === tab);
+  });
+  if (tab === 'loc') renderRpLocalization();
+  else if (tab === 'ai') renderRpAi();
+  else if (tab === 'comments') renderRpComments();
+  else if (tab === 'history') renderRpHistory();
+}
+
+// ── LOCALIZATION PANEL ────────────────────────────────────────────────────
+
+function renderRpLocalization() {
+  const t = getTemplate(currentId);
+  if (!t) return;
+  const tokens = t.tokens || [];
+  const body = document.getElementById('rp-body');
+  body.innerHTML = `
+    <div class="rp-section">
+      <div class="rp-section-title">Tokens</div>
+      <p style="font-size:12px;color:#605e5c;margin-bottom:10px;">
+        Define placeholders like <code style="background:#f3f2f1;padding:1px 4px;border-radius:2px;font-size:11px">{{name}}</code>. Click a token to insert it into the selected element.
+      </p>
+      ${tokens.map(tk => `
+        <div class="token-row">
+          <span class="token-chip" onclick="insertToken('${esc(tk.name)}')" title="Insert">{{${esc(tk.name)}}}</span>
+          <span class="token-default">${tk.def ? `= "${esc(tk.def)}"` : '(no default)'}</span>
+          <button class="icon-btn-sm" onclick="deleteToken(${tk.id})" title="Delete">🗑</button>
+        </div>`).join('')}
+      <button class="rp-btn" onclick="openDialog('dlg-token')">+ Add Token</button>
+    </div>
+    <hr style="border:none;border-top:1px solid #edebe9;margin:0 0 16px;">
+    <div class="rp-section">
+      <div class="rp-section-title">CSV Workflow</div>
+      <p style="font-size:12px;color:#605e5c;margin-bottom:10px;">
+        Export a CSV with token columns, fill in locale translations, then import to generate localized versions.
+      </p>
+      <button class="rp-btn" onclick="exportCsv()" ${tokens.length===0?'disabled':''}>⬇ Export CSV</button>
+      <button class="rp-btn" onclick="document.getElementById('csv-import-input').click()" ${tokens.length===0?'disabled':''}>⬆ Import CSV</button>
+      <input type="file" id="csv-import-input" accept=".csv" style="display:none" onchange="importCsv(event)">
+    </div>`;
+}
+
+function insertToken(name) {
+  if (!gjsEditor) return;
+  const sel = gjsEditor.getSelected();
+  if (sel) {
+    const cur = sel.get('content') || '';
+    sel.set('content', cur + `{{${name}}}`);
+  } else {
+    gjsEditor.addComponents(`<span>{{${name}}}</span>`);
+  }
+  toast(`Inserted {{${name}}}`);
+}
+
+function deleteToken(tokenId) {
+  const t = getTemplate(currentId);
+  t.tokens = (t.tokens||[]).filter(tk => tk.id !== tokenId);
+  saveTemplate_db(t); renderRpLocalization();
+  toast('Token deleted');
+}
+
+function confirmAddToken() {
+  const name = document.getElementById('token-name').value.replace(/[^a-zA-Z0-9_]/g,'').trim();
+  const def  = document.getElementById('token-default').value;
+  if (!name) return;
+  const t = getTemplate(currentId);
+  t.tokens = t.tokens || [];
+  t.tokens.push({ id: db.nextTokenId++, name, def });
+  saveTemplate_db(t); saveData();
+  closeDialog('dlg-token');
+  document.getElementById('token-name').value = '';
+  document.getElementById('token-default').value = '';
+  renderRpLocalization();
+  toast(`Token {{${name}}} added`);
+}
+
+function exportCsv() {
+  const t = getTemplate(currentId);
+  const tokens = t.tokens || [];
+  if (!tokens.length) return;
+  const header = ['token','default', 'en-US', 'fr-FR', 'de-DE'];
+  const rows = tokens.map(tk => [tk.name, tk.def||'','','','']);
+  const csv = [header, ...rows].map(r => r.map(c => `"${c.replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = (t.name||'template') + '-tokens.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('CSV exported');
+}
+
+function importCsv(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  toast('CSV imported (localization generation not yet connected to backend)');
+  e.target.value = '';
+}
+
+// ── AI PANEL ─────────────────────────────────────────────────────────────
+
+let aiHistory = [];
+let selectedPreset = null;
+
+function renderRpAi() {
+  const presets = ['Transactional','Promotional','Newsletter'];
+  const qactions = ['Change colors','Add CTA button','Add section','Update header','Improve spacing','Add social links','Make mobile-friendly','Simplify layout'];
+  const body = document.getElementById('rp-body');
+  body.innerHTML = `
+    ${aiUndoStack.length > 0 ? `<div class="undo-bar"><span style="font-size:12px;font-weight:500;">AI changed the creative</span><button onclick="aiUndo()" style="border:none;background:transparent;cursor:pointer;font-size:12px;color:#0078d4;font-family:inherit">↩ Undo</button></div>` : ''}
+    <div style="border-bottom:1px solid #edebe9;margin-bottom:12px;">
+      <div style="display:flex;margin-bottom:-1px;">
+        <div id="ai-tab-gen" onclick="switchAiTab('gen')" style="padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid #0078d4;color:#0078d4;">Generate</div>
+        <div id="ai-tab-mod" onclick="switchAiTab('mod')" style="padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#605e5c;">Modify</div>
+      </div>
+    </div>
+    <div id="ai-gen-panel">
+      <p style="font-size:12px;color:#605e5c;margin-bottom:8px;">Choose a preset or describe your creative:</p>
+      <div class="preset-chips">
+        ${presets.map((p,i)=>`<span class="preset-chip${selectedPreset===i?' active':''}" onclick="pickPreset(${i})">${p}</span>`).join('')}
+      </div>
+      <textarea class="rp-textarea" id="ai-gen-prompt" placeholder="Or type a custom description…"></textarea>
+      <button class="rp-btn primary" onclick="runAiGenerate()">✨ Generate Creative</button>
+    </div>
+    <div id="ai-mod-panel" style="display:none">
+      <p style="font-size:12px;color:#605e5c;margin-bottom:8px;">Quick actions or type an instruction:</p>
+      <div class="quick-actions">
+        ${qactions.map(a=>`<span class="qa-btn" onclick="pickQa(this,'${esc(a)}')">${a}</span>`).join('')}
+      </div>
+      <textarea class="rp-textarea" id="ai-mod-instruction" placeholder="e.g. Change the header to dark blue and make the CTA button larger"></textarea>
+      <button class="rp-btn primary" onclick="runAiModify()">⚡ Apply Changes</button>
+    </div>
+    ${aiHistory.length > 0 ? `
+    <div style="margin-top:16px;border-top:1px solid #edebe9;padding-top:12px;">
+      <div style="font-size:11px;font-weight:600;color:#605e5c;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">History (${aiHistory.length})</div>
+      ${aiHistory.map(h=>`
+        <div style="padding:7px 9px;border:1px solid #edebe9;border-radius:3px;margin-bottom:5px;cursor:pointer;background:#faf9f8;font-size:11px;" onclick="reuseAiPrompt('${esc(h.prompt)}','${h.type}')">
+          <span style="color:${h.ok?'#107c10':'#a4262c'};font-weight:600;text-transform:uppercase;font-size:10px;">${h.type}</span>
+          <span style="color:#a19f9d;float:right;">${h.time}</span><br>
+          <span style="color:#323130;">${esc(h.prompt.length>80?h.prompt.slice(0,80)+'…':h.prompt)}</span>
+        </div>`).join('')}
+    </div>` : ''}`;
+}
+
+function switchAiTab(tab) {
+  document.getElementById('ai-gen-panel').style.display = tab==='gen'?'':'none';
+  document.getElementById('ai-mod-panel').style.display = tab==='mod'?'':'none';
+  document.getElementById('ai-tab-gen').style.cssText = tab==='gen'
+    ? 'padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid #0078d4;color:#0078d4;'
+    : 'padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#605e5c;';
+  document.getElementById('ai-tab-mod').style.cssText = tab==='mod'
+    ? 'padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid #0078d4;color:#0078d4;'
+    : 'padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#605e5c;';
+}
+
+const AI_PRESETS = [
+  'A transactional email for order confirmations or account notifications. Include a clear header, structured data section, a primary action button, and a minimal professional footer.',
+  'A promotional email with a hero banner, compelling headline, product highlights, a prominent CTA button, and an unsubscribe link in the footer.',
+  "A newsletter with a branded header, editor's note, multiple article summaries in a grid layout, a resources section, and a footer with social links."
+];
+
+function pickPreset(i) {
+  selectedPreset = i;
+  document.getElementById('ai-gen-prompt').value = AI_PRESETS[i];
+  renderRpAi(); switchAiTab('gen');
+}
+
+function pickQa(el, label) {
+  document.getElementById('ai-mod-instruction').value = label + ': please apply this change to the current email design.';
+}
+
+function reuseAiPrompt(prompt, type) {
+  if (type==='generate') { switchAiTab('gen'); setTimeout(()=>{ document.getElementById('ai-gen-prompt').value = prompt; },50); }
+  else { switchAiTab('mod'); setTimeout(()=>{ document.getElementById('ai-mod-instruction').value = prompt; },50); }
+}
+
+function runAiGenerate() {
+  const prompt = document.getElementById('ai-gen-prompt')?.value?.trim();
+  if (!prompt) return;
+  toast('AI generation is not connected to a backend in this prototype.');
+  addAiHistory('generate', prompt, false);
+  renderRpAi(); switchAiTab('gen');
+}
+
+function runAiModify() {
+  const instruction = document.getElementById('ai-mod-instruction')?.value?.trim();
+  if (!instruction) return;
+  toast('AI modification is not connected to a backend in this prototype.');
+  addAiHistory('modify', instruction, false);
+  renderRpAi(); switchAiTab('mod');
+}
+
+function addAiHistory(type, prompt, ok) {
+  const now = new Date();
+  const time = now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  aiHistory.unshift({ type, prompt, ok, time });
+}
+
+function aiUndo() {
+  if (!aiUndoStack.length || !gjsEditor) return;
+  const prev = aiUndoStack.pop();
+  gjsEditor.setComponents(prev);
+  toast('Undone last AI change');
+  renderRpAi();
+}
+
+// ── COMMENTS PANEL ────────────────────────────────────────────────────────
+
+function renderRpComments() {
+  const t = getTemplate(currentId);
+  const comments = t.comments || [];
+  const body = document.getElementById('rp-body');
+  body.innerHTML = `
+    <div class="rp-section">
+      ${comments.length === 0
+        ? `<p style="font-size:13px;color:#a19f9d;font-style:italic;margin-bottom:12px;">No comments yet.</p>`
+        : comments.map(c => `
+          <div class="comment-box">
+            <div class="comment-meta">${esc(c.author)} · ${new Date(c.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+            <div class="comment-text">${esc(c.text)}</div>
+          </div>`).join('')}
+      <label class="rp-label" style="margin-top:8px;">Add a comment</label>
+      <textarea class="rp-textarea" id="new-comment-text" placeholder="Type your comment…" rows="3"></textarea>
+      <button class="rp-btn primary" onclick="addComment()">Post Comment</button>
+    </div>`;
+}
+
+function addComment() {
+  const text = document.getElementById('new-comment-text')?.value?.trim();
+  if (!text) return;
+  const t = getTemplate(currentId);
+  t.comments = t.comments || [];
+  t.comments.push({ id: db.nextCommentId++, author:'kwal', ts: new Date().toISOString(), text });
+  saveTemplate_db(t); saveData();
+  renderRpComments();
+  toast('Comment posted');
+}
+
+// ── VERSION HISTORY PANEL ─────────────────────────────────────────────────
+
+function renderRpHistory() {
+  const t = getTemplate(currentId);
+  const versions = t.versions || [];
+  const body = document.getElementById('rp-body');
+  body.innerHTML = `
+    <div class="rp-section">
+      <p style="font-size:12px;color:#605e5c;margin-bottom:12px;">Each save creates a new version. Reverting creates a new version with the previous content.</p>
+      ${versions.length === 0
+        ? `<p style="font-size:13px;color:#a19f9d;font-style:italic;">No versions yet. Save the creative to create the first version.</p>`
+        : versions.map(v => `
+          <div class="version-row">
+            <div class="version-info">
+              <div class="version-num">Version ${v.ver}</div>
+              <div class="version-meta">${esc(v.savedBy)} · ${new Date(v.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+            <button class="version-revert" onclick="openRevertDialog(${v.ver})">Revert</button>
+          </div>`).join('')}
+    </div>`;
+}
+
+function openRevertDialog(ver) {
+  document.getElementById('revert-ver').value = ver;
+  document.getElementById('revert-msg').textContent = `Revert to Version ${ver}? This will create a new version with that content.`;
+  openDialog('dlg-revert');
+}
+
+function confirmRevert() {
+  const ver = parseInt(document.getElementById('revert-ver').value);
+  const t = getTemplate(currentId);
+  const v = (t.versions||[]).find(x => x.ver === ver);
+  if (!v) { closeDialog('dlg-revert'); return; }
+
+  // Push current to history, then restore
+  t.versions.unshift({
+    ver: (t.versions[0]?.ver || 0) + 1,
+    html: t.html, gjsData: t.gjsData,
+    savedBy: 'kwal', savedAt: new Date().toISOString(),
+  });
+  t.html = v.html;
+  t.gjsData = v.gjsData;
+  t.updatedBy = 'kwal';
+  t.updatedAt = new Date().toISOString();
+  saveTemplate_db(t);
+
+  // Reload editor
+  initGjs(t);
+  closeDialog('dlg-revert');
+  renderRpHistory();
+  toast(`Reverted to Version ${ver}`);
+}
+
+// ── DIALOGS ───────────────────────────────────────────────────────────────
+
+function openDialog(id) { document.getElementById(id).classList.add('open'); }
+function closeDialog(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('mousedown', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// Create
+function openCreateDialog() {
+  setCreateMode('blank');
+  document.getElementById('create-name').value = '';
+  document.getElementById('create-desc').value = '';
+  document.getElementById('import-html').value = '';
+  openDialog('dlg-create');
+  setTimeout(() => document.getElementById('create-name').focus(), 50);
+}
+
+function setCreateMode(mode) {
+  createMode = mode;
+  document.getElementById('create-tab-blank').classList.toggle('active', mode==='blank');
+  document.getElementById('create-tab-import').classList.toggle('active', mode==='import');
+  document.getElementById('create-import-area').style.display = mode==='import' ? '' : 'none';
+}
+
+function handleImportFile(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { document.getElementById('import-html').value = ev.target.result || ''; };
+  reader.readAsText(file);
+}
+
+function createTemplate() {
+  const name = document.getElementById('create-name').value.trim() || 'Untitled Creative';
+  const desc = document.getElementById('create-desc').value.trim();
+  const html  = createMode === 'import' ? (document.getElementById('import-html').value || '') : '';
+  const now   = new Date().toISOString();
+  const t = {
+    id: db.nextId++, name, desc, subject:'', html, gjsData:'',
+    tokens:[], comments:[], versions:[],
+    createdBy:'kwal', createdAt:now, updatedBy:'kwal', updatedAt:now,
+  };
+  db.templates.push(t);
+  saveData();
+  closeDialog('dlg-create');
+  toast(`Created "${name}"`);
+  openEditor(t.id);
+}
+
+// Duplicate
+function openDupDialog(id) {
+  const t = getTemplate(id);
+  document.getElementById('dup-id').value = id;
+  document.getElementById('dup-name').value = t.name + ' (Copy)';
+  openDialog('dlg-duplicate');
+  setTimeout(() => document.getElementById('dup-name').focus(), 50);
+}
+
+function confirmDuplicate() {
+  const id   = parseInt(document.getElementById('dup-id').value);
+  const name = document.getElementById('dup-name').value.trim() || 'Copy';
+  const src  = getTemplate(id);
+  const now  = new Date().toISOString();
+  const dup  = { ...src, id: db.nextId++, name, versions:[], comments:[],
+                 createdBy:'kwal', createdAt:now, updatedBy:'kwal', updatedAt:now };
+  db.templates.push(dup);
+  saveData();
+  closeDialog('dlg-duplicate');
+  renderGallery();
+  toast(`Duplicated as "${name}"`);
+}
+
+// Delete
+function openDeleteDialog(id) {
+  const t = getTemplate(id);
+  document.getElementById('delete-id').value = id;
+  document.getElementById('delete-msg').textContent = `Delete "${t.name}"? This cannot be undone.`;
+  openDialog('dlg-delete');
+}
+
+function confirmDelete() {
+  const id = parseInt(document.getElementById('delete-id').value);
+  db.templates = db.templates.filter(t => t.id !== id);
+  saveData();
+  closeDialog('dlg-delete');
+  renderGallery();
+  toast('Creative deleted');
+}
+
+// Test send
+function openTestSendDialog() {
+  document.getElementById('ts-email').value = '';
+  document.getElementById('ts-result').style.display = 'none';
+  openDialog('dlg-test-send');
+}
+
+function sendTestEmail() {
+  const email = document.getElementById('ts-email').value.trim();
+  if (!email) return;
+  const method = document.getElementById('ts-method').value;
+  const res = document.getElementById('ts-result');
+  res.style.display = '';
+  res.style.background = '#dff6dd';
+  res.style.color = '#107c10';
+  res.style.border = '1px solid #bad80a';
+  res.textContent = `Test send simulated via ${method} to ${email}. Connect a backend to send real emails.`;
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────────
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s||'').replace(/"/g,'&quot;'); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+
+renderGallery();
+</script>
+</body>
+</html>
