@@ -1,0 +1,191 @@
+{{PageOwner:kwal@microsoft.com}}
+{{IrisNav}}
+
+= Iris Studio: Email Audiences =
+
+This page explains how to build targeting audiences for Iris email campaigns using segments. It covers derived segments (composite audiences from multiple segments), property bag output values for personalization, and the specific constraints that apply to email delivery.
+
+== Overview ==
+
+An '''audience''' for an Iris email campaign is defined by one or more '''segments''' — pre-computed sets of users who share similar attributes. Segments can be combined to create precise targeting:
+
+* '''Inclusion segments''' — intersected (inner join) to narrow the audience
+* '''Exclusion segments''' — anti-joined to remove users from the audience
+
+This combination of inclusions and exclusions produces a '''derived segment''' — a composite audience that doesn't require its own custom query.
+
+== How Derived Segments Work ==
+
+A derived segment is built in Iris Studio by combining existing segments:
+
+{| class="wikitable"
+! Operation !! Effect !! Example
+|-
+| '''Include (intersect)''' || Only users present in ALL included segments qualify || "M365 subscribers" AND "US locale" → only US-based M365 subscribers
+|-
+| '''Exclude (anti-join)''' || Users in excluded segments are removed from the audience || Exclude "Already contacted in last 30 days" → avoids recent recipients
+|}
+
+=== Building a Derived Segment ===
+
+# Navigate to your campaign's line in Iris Studio
+# In the '''Audience''' section, add one or more '''inclusion''' segments
+# Optionally add '''exclusion''' segments to remove unwanted users
+# Iris computes the intersection of all inclusions minus all exclusions at delivery time
+
+== Property Bag Output Values ==
+
+For email campaigns, you often need personalization data — such as the user's locale, name, subscription tier, or other dynamic values — to be available in the email template via <code>@Model.&lt;PropertyName&gt;</code>.
+
+These values are carried in the '''property bag''' — a set of key-value pairs output by a segment and passed through to the email rendering engine.
+
+{{Warning|'''Critical constraint for email:''' Custom output values in the property bag can '''only''' come from the '''first inclusion segment'''. Additional inclusion and exclusion segments are used purely for audience filtering — they do not contribute property bag values.}}
+
+=== What This Means in Practice ===
+
+{| class="wikitable"
+! Segment Position !! Role !! Contributes Property Bag?
+|-
+| '''First inclusion segment''' || Defines the base audience AND provides output values (locale, custom variables) || '''Yes'''
+|-
+| Additional inclusion segments || Narrows the audience (intersection) || No
+|-
+| Exclusion segments || Removes users (anti-join) || No
+|}
+
+== When You Need a Custom Scope Segment ==
+
+If your email requires custom property bag values (beyond what standard segments provide), you must create a '''custom Scope segment''' as your first inclusion segment.
+
+=== What is a Custom Scope Segment? ===
+
+A custom Scope segment is built using a Scope query that directly references Cosmos views or streams. Unlike structured segments (which use predefined schemas), custom Scope segments let you:
+
+* Define arbitrary output columns (which become property bag values)
+* Query any available data source in Cosmos
+* Include personalization data like locale, product tier, expiration dates, etc.
+
+=== Creating a Custom Scope Segment ===
+
+# Go to [https://aka.ms/iriscomms Iris Comms] → '''Segments''' → '''+Segment'''
+# Fill in segment metadata:
+#* '''Name''': Descriptive name (e.g., <code>MyTeam_EmailAudience_WithLocale</code>)
+#* '''Line of Business''': Consumer or Commercial
+#* '''Product''': Must match the product used in your campaign
+# On the ''Define Query'' screen:
+#* '''User Type''': Select the ID type in your source data (MSAPUID, PUIDINT, etc.)
+#* '''Source Type''': Cosmos
+#* '''Query Type''': Custom Scope Query
+# Write your Scope query, ensuring it outputs:
+#* A user ID column (matching the selected User Type)
+#* Any custom columns you need in the property bag (e.g., <code>Locale</code>, <code>FirstName</code>, <code>SubscriptionTier</code>)
+
+=== Example Scope Query Pattern ===
+
+<pre>
+// Output: UserPuid, Locale, ProductName
+users = 
+    SELECT UserPuid,
+           Locale,
+           ProductName
+    FROM "/path/to/your/cosmos/stream"
+    WHERE IsActive == true;
+
+OUTPUT users
+TO SSTREAM "/output/path"
+</pre>
+
+The output columns (<code>Locale</code>, <code>ProductName</code>) become available in your email template as <code>@Model.Locale</code> and <code>@Model.ProductName</code>.
+
+== Combining Custom and Standard Segments ==
+
+The typical pattern for email audiences with personalization:
+
+{| class="wikitable"
+! Position !! Segment !! Purpose
+|-
+| '''1st inclusion''' || Custom Scope segment with output values || Provides user list + property bag (locale, variables)
+|-
+| 2nd inclusion || Standard segment (e.g., "Active M365 users") || Narrows audience to relevant users
+|-
+| 3rd inclusion || Standard segment (e.g., "English-speaking markets") || Further narrows audience
+|-
+| Exclusion || Standard segment (e.g., "Contacted in last 7 days") || Removes recently-contacted users
+|}
+
+{{Warning|If you don't need custom property bag values (e.g., locale is handled via real-time signals or you have no personalization), you can use standard/structured segments for all positions. A custom Scope segment is only required when you need to pass custom data to the email template.}}
+
+== Standard Segments vs. Custom Scope ==
+
+{| class="wikitable"
+! Feature !! Standard (Structured) Segment !! Custom Scope Segment
+|-
+| '''Query type''' || Predefined schema, point-and-click || Freeform Scope script against Cosmos
+|-
+| '''Output''' || User IDs only || User IDs + custom columns (property bag)
+|-
+| '''Use case''' || Filtering/narrowing audience || Base audience with personalization data
+|-
+| '''Creation''' || Quick, no coding required || Requires knowledge of Cosmos data and Scope syntax
+|-
+| '''Refresh''' || Automatic (daily when active) || Automatic (daily when active)
+|}
+
+== Real-Time Signals ==
+
+In addition to segments, email campaigns can use '''real-time signals''' (session context attributes) for delivery-time filtering. These are evaluated when the email is triggered and include:
+
+* Locale (language and country)
+* Device type
+* Days since account creation
+* User type (consumer vs. enterprise)
+
+Real-time signals can supplement segment-based targeting but do '''not''' provide property bag values for template personalization.
+
+== Segment Refresh and Timing ==
+
+{| class="wikitable"
+! Scenario !! Refresh Cadence
+|-
+| Segments in active campaigns || Every 24 hours
+|-
+| Newly created segments (< 24 hrs) || Refreshed once to verify size
+|-
+| Inactive/hibernating segments || Not refreshed until booked to a campaign (resumes 2 days before campaign start)
+|}
+
+{{Warning|Plan your campaign start date at least 2 days after booking a hibernating segment to allow it to refresh with current data.}}
+
+== Best Practices ==
+
+# '''Always put your custom Scope segment first''' if you need property bag values for email personalization
+# '''Use standard segments for filtering''' — they're easier to create and maintain
+# '''Test segment sizes before launching''' — verify your intersections produce a reasonable audience
+# '''Use exclusions to prevent fatigue''' — exclude users contacted recently
+# '''Keep Scope queries efficient''' — only output the columns you actually need in the property bag
+# '''Document your custom segments''' — include a description of what output columns mean and where the data comes from
+
+== Troubleshooting ==
+
+{| class="wikitable"
+! Issue !! Likely Cause !! Resolution
+|-
+| <code>@Model.PropertyName</code> is empty in email || Property not output by the first inclusion segment || Verify your custom Scope segment outputs that column
+|-
+| Audience size is 0 || Intersection of inclusions is empty || Check that segments share users; test each individually
+|-
+| Wrong locale in email || Locale not in property bag or wrong column name || Ensure first inclusion segment outputs <code>Locale</code> column
+|-
+| Segment not refreshing || Segment is hibernating (not booked to active campaign) || Book it to a campaign; allow 2 days for refresh
+|-
+| Segment unavailable in campaign || Product mismatch || Ensure segment and campaign use the same Product classification
+|}
+
+== Related Pages ==
+
+* [[Email_Creatives|Email Creatives]] — Building and localizing email HTML content
+* [[ICMS_Content_Authoring|ICMS Content Authoring]] — Creating email templates with <code>@Model</code> personalization
+* [[Iris_Content_(ICMS)|Iris Content (ICMS)]] — Getting access and running the content management tool
+* [[Create_an_Iris_campaign|Create an Iris Campaign]] — End-to-end campaign setup
+
+[[Category:Iris]]

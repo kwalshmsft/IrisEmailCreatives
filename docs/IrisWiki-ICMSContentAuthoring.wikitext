@@ -1,0 +1,188 @@
+{{PageOwner:kwal@microsoft.com}}
+{{IrisNav}}
+
+= ICMS Content Authoring =
+
+This page covers how to create, edit, and publish email content in '''Iris Content (ICMS)'''. For information on getting access and installing the client, see [[Iris_Content_(ICMS)|Iris Content (ICMS)]].
+
+== Content Types ==
+
+All Iris emails should be built using the content type '''IrisEmailTemplate'''. This content type is generic enough to support any email scenario.
+
+To create a new email template:
+# Navigate to your team's folder in ICMS
+# Select '''New Item'''
+# Name the item descriptively (e.g., <code>MyTeam_WelcomeEmail</code>)
+# Browse to '''Content Types → EmailTemplates → IrisEmailTemplate'''
+
+=== Template Fields ===
+
+The IrisEmailTemplate contains four fields:
+
+{| class="wikitable"
+! Field !! Purpose !! Notes
+|-
+| '''Subject''' || Email subject line || Supports Razor syntax for personalization
+|-
+| '''PlainTextBody''' || Plain text fallback || For email clients that don't render HTML
+|-
+| '''HtmlBodyFormat''' || HTML email body || The main visual content of the email
+|-
+| '''SenderProfileName''' || From address profile || Must match an onboarded sender profile
+|}
+
+=== Inline vs. Linked Content ===
+
+Each field can be defined in two ways:
+
+{| class="wikitable"
+! Mode !! Description !! Best For
+|-
+| '''Inline''' || Content is defined directly in the template || Simple, single-use content
+|-
+| '''Linked''' || References a separate reusable content block || Localized content, shared strings
+|}
+
+Most localized content uses '''linked''' content with the content types:
+* <code>IrisStringResource</code> — for short text strings
+* <code>IrisTextField</code> — for longer text blocks
+
+{{Warning|Do '''not''' use the "Targeted" option for field definitions — it does not work for email.}}
+
+{{Warning|The HtmlBodyFormat field cannot be edited in the WYSIWYG Editor. Use the source/code editor directly. For visual HTML editing, consider the [[Email_Creatives|Email Creatives Tool]] in Iris Studio.}}
+
+== Check Out, Check In, and Publish ==
+
+ICMS uses a version control workflow:
+
+{| class="wikitable"
+! Action !! Effect
+|-
+| '''Check Out''' || Locks the item for editing (only you can modify it)
+|-
+| '''Check In''' || Saves your changes and unlocks the item
+|-
+| '''Publish''' || Makes the checked-in version live for real emails
+|}
+
+=== Key Rules ===
+
+* Iris Studio will '''only send published content''' in live emails
+* Content '''cannot be edited''' unless it is checked out
+* Changes '''cannot be published''' unless the content is first checked in
+* Published content '''can''' be checked out, edited, and checked in without being republished — this lets you stage updates without affecting live emails
+
+=== Typical Workflow ===
+
+# '''Check out''' the content item
+# Make your edits (update HTML, change strings, add locale variants)
+# '''Check in''' the content
+# Test using the [[Email_Creatives|Email Creatives Tool]] or Iris Studio preview
+# When satisfied, '''Publish''' to make changes live
+
+{{Warning|After publishing, allow up to '''one hour''' for the Iris rendering engine cache to refresh in Production. Plan your updates accordingly.}}
+
+== Localization ==
+
+ICMS supports locale variants for all content fields. Each template can have multiple locale-specific versions of its content.
+
+=== How Locales Work ===
+
+* Each content item can have variants for different locales (e.g., <code>en-us</code>, <code>fr-fr</code>, <code>ja-jp</code>)
+* At send time, Iris resolves the recipient's locale and selects the appropriate variant
+* If no match is found, the default (invariant) locale is used as fallback
+
+=== Adding Locale Variants ===
+
+In ICMS:
+# Open the content item
+# Use the locale selector to add a new locale variant
+# Enter the translated content for that locale
+# Check in and publish when ready
+
+=== Using the Email Creatives Tool for Localization ===
+
+The [[Email_Creatives|Email Creatives Tool]] in Iris Studio provides a streamlined workflow:
+# Build your source HTML in the '''Create''' tab
+# Switch to the '''Localize''' tab
+# Upload translations via CSV or XLSX file
+# Export localized XML files for import back into ICMS
+
+This is especially useful for bulk localization across many locales. See [[Email_Creatives#Localize_Tab|Email Creatives: Localize Tab]] for details.
+
+== Assets and Images ==
+
+Images used in emails are stored in the '''Assets''' section of ICMS:
+
+<pre>
+Site Assets → Membership.Communication → <Your Team's Folder>
+</pre>
+
+=== Image Best Practices ===
+
+* Host all images in ICMS Assets — do not use external URLs that may be blocked by email clients
+* Use absolute URLs when referencing images in HTML (ICMS provides the full URL when you upload)
+* Optimize images for email — keep total email size reasonable for deliverability
+* Always include <code>alt</code> text for accessibility
+
+== Razor Syntax ==
+
+ICMS templates support a Razor-like syntax for dynamic content:
+
+<pre>
+Hello @Model.FirstName,
+
+Your subscription expires on @Model.ExpirationDate.
+</pre>
+
+=== Common Patterns ===
+
+{| class="wikitable"
+! Pattern !! Example !! Purpose
+|-
+| Simple property || <code>@Model.PropertyName</code> || Insert a dynamic value
+|-
+| Conditional || <code>@if(Model.IsPremium) { ... }</code> || Show/hide content based on data
+|-
+| Helper function || <code>@Helpers.TrackedLink(url)</code> || Click tracking for links
+|}
+
+{{Warning|Razor syntax errors will cause the email to fail at render time. Always test templates before publishing.}}
+
+== Testing ==
+
+Before publishing content changes, test using one of these methods:
+
+{| class="wikitable"
+! Method !! Best For
+|-
+| [[Email_Creatives|Email Creatives Tool]] || Visual preview of HTML, localization validation, bulk locale testing
+|-
+| Iris Studio Preview || End-to-end preview with real targeting data
+|-
+| ICP Localization and Render Tool (.exe) || Desktop tool for automated rendering and screenshot generation
+|}
+
+== Troubleshooting ==
+
+{| class="wikitable"
+! Issue !! Cause !! Resolution
+|-
+| Content not updating in live emails || 1-hour cache in Production || Wait for cache refresh, or test with unpublished preview
+|-
+| Cannot edit content || Item not checked out || Check out the item first
+|-
+| Cannot publish || Item not checked in || Check in your changes before publishing
+|-
+| Missing locale variant || Locale not added to content item || Add the locale variant in ICMS and publish
+|-
+| Images not displaying || External URL or broken reference || Move images to ICMS Assets and use the provided absolute URL
+|}
+
+== Related Pages ==
+
+* [[Iris_Content_(ICMS)|Iris Content (ICMS)]] — Getting access, installing, and folder structure
+* [[Email_Creatives|Email Creatives]] — Web-based tool for building and localizing email HTML
+* [[Create_an_Iris_campaign|Create an Iris Campaign]] — End-to-end campaign setup guide
+
+[[Category:Iris]]

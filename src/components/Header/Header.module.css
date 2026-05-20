@@ -1,0 +1,53 @@
+.header {
+  background-color: #0078d4;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: white;
+  gap: 16px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.header :global(.ms-Breadcrumb) {
+  margin: 0;
+}
+
+.header :global(.ms-Breadcrumb-item),
+.header :global(.ms-Breadcrumb-itemLink) {
+  color: white;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  line-height: normal !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.header :global(.ms-Breadcrumb-listItem) h1,
+.header :global(.ms-Breadcrumb-listItem) h2 {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: normal !important;
+}
+
+.header :global(.ms-Breadcrumb-chevron) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.header :global(.ms-Breadcrumb-list) {
+  display: flex;
+  align-items: center;
+}
+
+.header :global(.ms-Breadcrumb-listItem::after) {
+  color: rgba(255, 255, 255, 0.7);
+}

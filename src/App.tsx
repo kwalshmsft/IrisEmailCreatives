@@ -1,26 +1,46 @@
 import React from 'react';
-import logo from './logo.svg';
+import { HashRouter, Switch, Route, Redirect, useLocation } from 'react-router-dom';
+import { Gallery } from './pages/Gallery/Gallery';
+import { Editor } from './pages/Editor/Editor';
 import './App.css';
 
-function App() {
+const isEmbedded = window.self !== window.top;
+
+const PageChangeNotifier: React.FC = () => {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (isEmbedded) {
+      const page = location.pathname === '/' ? '/gallery' : location.pathname;
+      window.parent.postMessage({ type: 'emailEditor:pageChanged', page }, '*');
+    }
+  }, [location.pathname]);
+
+  return null;
+};
+
+const AppShell: React.FC = () => {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <>
+      <PageChangeNotifier />
+      <div className="page-content">
+        <Switch>
+          <Route exact path="/" component={Gallery} />
+          <Route path="/gallery" component={Gallery} />
+          <Route path="/editor" component={Editor} />
+          <Redirect to="/" />
+        </Switch>
+      </div>
+    </>
   );
-}
+};
+
+const App: React.FC = () => {
+  return (
+    <HashRouter>
+      <AppShell />
+    </HashRouter>
+  );
+};
 
 export default App;

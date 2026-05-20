@@ -1,0 +1,210 @@
+{{PageOwner:kwal@microsoft.com}}
+{{IrisNav}}
+
+__TOC__
+
+=Email Creatives Tool=
+
+The '''Email Creatives''' tool is a browser-based application embedded within Iris Studio that enables teams to author, preview, localize, and package HTML email content for Iris Content Management (ICMS).
+
+It is accessible in Iris Studio under '''Creatives → Email Creatives''' in the left navigation.
+
+==Overview==
+
+{| class="wikitable"
+|-
+! Capability !! Description
+|-
+| Create & Edit || Author email HTML using a visual block editor or raw HTML
+|-
+| Preview || Render emails across viewport sizes and simulated email clients
+|-
+| Save & Publish || Store content in a browser-based gallery organized by folders
+|-
+| Localize || Export strings, apply translations, and generate locale-specific HTML
+|-
+| ICMS Import Packaging || Produce .zip packages for ICMS "Import from Localization"
+|}
+
+==Important Notes==
+
+{{Warning|'''This tool does not publish content to ICMS or Iris.''' All publishing must be performed manually using the ICMS desktop client ([https://aka.ms/geticmsclient aka.ms/geticmsclient]).}}
+
+{{Warning|'''Content objects must be created manually in ICMS''' using the <code>IrisEmailTemplate</code> content type under <code>InvariantCulture</code> before localization packaging can take place.}}
+
+{{Warning|'''Browser-based storage only.''' All saved content lives in the browser's IndexedDB and localStorage. Content is not synced to a server. Clearing browser data will delete all saved work.}}
+
+{{Warning|'''Out-of-sync risk.''' If content is unpublished in the tool's gallery but has already been exported or uploaded to ICMS, those versions will remain in ICMS. The tool has no mechanism to recall or update content already uploaded to ICMS. Always verify ICMS content matches the latest published version in the tool before going live.}}
+
+{{Warning|'''No version history.''' Saving overwrites the previous version. If you need to preserve earlier drafts, download the HTML before making changes.}}
+
+=Create Tab=
+
+The Create tab is the primary authoring environment for email HTML content.
+
+==Features==
+
+*'''Visual Editor''' — drag-and-drop block editor for building email layouts (text, images, buttons, spacers)
+*'''Raw HTML''' — direct HTML editing for advanced markup, Razor syntax, and fine-grained control
+*'''Subject Line''' — set the email subject (stored in the HTML <code><title></code> tag)
+*'''Locale''' — read from the <code><html lang="..."></code> attribute; editable via pencil icon
+*'''RTL Support''' — toggle right-to-left preview for RTL locales
+*'''Preview''' — responsive preview with viewport sizes (Mobile 375px, Tablet 768px, Desktop) and simulated email clients (Standard, Outlook Desktop, iOS Mail)
+*'''Content Gallery''' — save and organize content in nested folder paths; publish/unpublish to control availability in the Localize tab
+
+==Workflow==
+
+#Start from blank, open a saved template, or open existing content from the gallery
+#Edit using Visual or Raw HTML mode
+#Set the locale and subject line
+#Save to the gallery (folder path + file name)
+#Preview across viewports and clients
+#Publish when the content is ready for localization
+
+=Localize Tab=
+
+The Localize tab handles the end-to-end localization workflow for email content.
+
+==Workflow==
+
+#'''Load source content''' — upload an HTML file or select a published file from the inline gallery browser
+#'''Download export''' — once loaded, .csv and .xlsx download links appear in the status bar with all localizable strings extracted
+#'''Translate''' — send the .csv or .xlsx to your translation team; translations are added by row (.csv with a Locale column) or by locale-named worksheets (.xlsx)
+#'''Upload translations''' — upload the completed translation file to generate localized HTML variants
+#'''Upload ICMS export''' — upload the .xml file exported from ICMS (right-click → Export on the content object)
+#'''Generate import package''' — select the source file, review available locales, and generate the .zip for ICMS import
+
+==Locale Detection==
+
+{| class="wikitable"
+|-
+! Source !! How locale is determined
+|-
+| Source HTML || Read from <code><html lang="..."></code> attribute
+|-
+| CSV translations || Locale column (first column of each data row)
+|-
+| XLSX translations || Worksheet/sheet name (e.g., "es-ES", "fr-FR")
+|}
+
+==Generated Output==
+
+*Localized HTML files (one per target locale, with translated strings and updated <code>lang</code> attribute)
+*ICMS import package (.zip with locale folders, each containing <code>content.xml</code> and the localized HTML)
+
+=End-to-End Process=
+
+<pre>
+ 1. Author HTML email content in the Create tab
+ 2. Publish the content in the gallery
+ 3. Load the published content in the Localize tab
+ 4. Download .csv or .xlsx, send for translation
+ 5. Upload completed translations → generates localized HTML
+ 6. Create the content object in ICMS (IrisEmailTemplate, InvariantCulture)
+ 7. Export .xml from ICMS (right-click → Export)
+ 8. Upload .xml in Localize tab → generate import package (.zip)
+ 9. In ICMS: Import from Localization using the .zip
+10. Publish all locale variants in ICMS
+</pre>
+
+=ICMS Razor Syntax=
+
+The tool supports authoring Razor expressions that ICMS evaluates at render time:
+
+{| class="wikitable"
+|-
+! Syntax !! Purpose
+|-
+| <code>@@Model.<PropertyName></code> || Dynamic property values from the content model
+|-
+| <code>@@Culture.Name</code> || Current locale (e.g., "en-US")
+|-
+| <code>##UnsubscribeLinkPlaceholder##</code> || Iris unsubscribe link
+|}
+
+'''Note:''' Use double <code>@@</code> in source files so expressions survive the ICMS import pipeline.
+
+===Conditional Logic Example===
+
+<pre>
+@@if (Model.SubscriptionType == "Premium") {
+    <p>Exclusive offer for premium members!</p>
+} else {
+    <p>Upgrade to Premium for exclusive offers!</p>
+}
+
+@@if (Culture.Name == "en-US") {
+    <p>English content here</p>
+} else if (Culture.Name == "fr-FR") {
+    <p>French content here</p>
+}
+</pre>
+
+=Import Package Structure=
+
+The generated .zip follows the ICMS "Import from Localization" format:
+
+<pre>
+IrisEmailTemplate.zip
+├─ en-US/
+│  ├─ content.xml
+│  └─ Newsletter_en-US.html
+├─ fr-FR/
+│  ├─ content.xml
+│  └─ Newsletter_fr-FR.html
+└─ ja-JP/
+   ├─ content.xml
+   └─ Newsletter_ja-JP.html
+</pre>
+
+Each locale folder contains:
+*'''content.xml''' — ICMS metadata pointing to the HTML body file
+*'''[filename].html''' — the localized HTML content
+
+=Known Limitations=
+
+{| class="wikitable"
+|-
+! Limitation !! Impact !! Mitigation
+|-
+| Browser-only storage || Content lost if browser data is cleared || Download HTML backups regularly
+|-
+| No ICMS integration || Cannot publish, update, or recall content in ICMS || Always verify ICMS matches tool state before publishing
+|-
+| No version control || Saving overwrites previous content || Download before making significant changes
+|-
+| Single-user || No collaboration or conflict resolution || Coordinate with team on who is editing
+|-
+| Unpublish ≠ recall || Unpublishing in the tool does not affect content already in ICMS || Manually remove outdated content from ICMS if needed
+|-
+| Visual editor limitations || Complex HTML/Razor may be reformatted || Use Raw HTML mode for advanced content
+|}
+
+=FAQ=
+
+'''Q: Can I use this tool without Iris Studio?'''
+
+A: Yes. Navigate directly to the app URL to use it standalone without the Iris Studio navigation shell.
+
+'''Q: What happens if I unpublish content that's already been exported?'''
+
+A: Unpublishing only affects the tool's gallery — it removes the file from the Localize tab's gallery browser. Any content already uploaded to ICMS remains unchanged. You must manually manage ICMS content separately.
+
+'''Q: Can multiple people use the tool on the same content?'''
+
+A: Currently no. The storage is per-browser with no sync mechanism. Coordinate with your team to avoid conflicts.
+
+'''Q: What file formats are supported for translation upload?'''
+
+A: <code>.csv</code> (with a Locale column identifying the target language per row) and <code>.xlsx</code> (with locale codes as sheet names).
+
+'''Q: Do I need to include the locale in the filename?'''
+
+A: No. The source locale is read from the HTML <code><html lang></code> attribute, and translation locales come from the CSV Locale column or XLSX sheet names.
+
+=See Also=
+
+*[[Category:Iris|Iris Wiki Home]]
+*[https://aka.ms/geticmsclient ICMS Client Download]
+
+[[Category:Iris]]

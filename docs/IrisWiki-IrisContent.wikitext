@@ -1,0 +1,119 @@
+{{PageOwner:kwal@microsoft.com}}
+{{IrisNav}}
+
+= Iris Content (ICMS) =
+
+'''Iris Content''' (formerly known as Iris Content Management Studio, or ICMS) is the content management system used by Iris to store, version, localize, and publish content for emails, notifications, and other communication surfaces.
+
+== Overview ==
+
+Iris Content is a robust content management tool that supports:
+* Image and asset hosting
+* Localization and locale variant management
+* In-line Razor-syntax code for dynamic content
+* Version control (check out / check in / publish workflow)
+* Folder-based permissions per product team
+
+There are two environments:
+
+{| class="wikitable"
+! Environment !! Purpose !! Iris Studio Connection
+|-
+| '''Production''' || Live content for real emails || [https://studio.iris.microsoft.com Iris Studio PROD]
+|-
+| '''Sandbox''' || Testing and development || [https://studio.iris.microsoft-int.com Iris Studio INT]
+|}
+
+For most users, only the '''Production''' instance of ICMS is needed.
+
+== Getting Access ==
+
+=== Step 1: Join the Read Access Security Group ===
+
+The security group that controls '''read''' permissions to ICMS is:
+
+<pre>
+IrisContentUsers
+</pre>
+
+Join this SG before proceeding further. Access typically takes 1–2 days to propagate.
+
+=== Step 2: Get Write Access to Your Team's Folder ===
+
+Each product team is provided with:
+* Their own '''folder''' in ICMS
+* A '''team-specific security group''' for write access
+
+As part of onboarding, the Iris team creates new folders and applies permissions. If you don't yet have a folder, contact the Iris team to set one up.
+
+{{Warning|You must have both IrisContentUsers (read) AND your team-specific SG (write) to create and edit content.}}
+
+=== Security Group Summary ===
+
+{| class="wikitable"
+! Group !! Purpose !! How to Join
+|-
+| <code>IrisContentUsers</code> || Read access to all ICMS content || Self-service via MyAccess / idweb
+|-
+| ''Team-specific SG'' || Write access to your team's folder || Request from your team lead or Iris team
+|}
+
+== Downloading and Running ICMS ==
+
+The latest build of the ICMS client is always available at:
+
+<pre>
+https://aka.ms/geticmsclient
+</pre>
+
+# Click the link above
+# Select "Open" and allow the application to download
+# The application will launch automatically
+
+{{Warning|ICMS works best in Microsoft Edge. Other browsers may have compatibility issues with the ClickOnce installer.}}
+
+== Environments and Folder Structure ==
+
+=== Production ===
+
+{| class="wikitable"
+! Section !! Path
+|-
+| Content Items || <code>Sites → Membership.Communication → Global → ''<Your Team's Folder>''</code>
+|-
+| Assets (images) || <code>Site Assets → Membership.Communication → ''<Your Team's Folder>''</code>
+|}
+
+=== Sandbox ===
+
+The Sandbox environment uses a parallel structure under <code>Membership.Communication.Test</code>:
+
+{| class="wikitable"
+! Section !! Path
+|-
+| Content Items || <code>Sites → Membership.Communication.Test → Global → ''<Your Team's Folder>''</code>
+|-
+| Assets (images) || <code>Site Assets → Membership.Communication.Test → ''<Your Team's Folder>''</code>
+|}
+
+=== Organizing Your Folder ===
+
+Inside your team's folder, you may create subfolders and organize content however makes sense for your scenario. Common approaches include:
+* '''By email type''' — one folder per email template (e.g., <code>WelcomeEmail</code>, <code>RenewalReminder</code>)
+* '''By date/campaign''' — organized around calendar events
+
+{{Warning|Once content has been published and is being used by a live email, it should '''not''' be moved to a different folder. Moving published content can break references.}}
+
+== Caching Behavior ==
+
+The Iris email rendering engine '''caches content from ICMS for up to one hour''' in the Production environment. Keep this delay in mind when testing updates to live content.
+
+Both testing paths (the [[Email_Creatives|Email Creatives Tool]] and Iris Studio's preview) account for this delay and provide ways to test unpublished content.
+
+== Related Pages ==
+
+* [[ICMS_Content_Authoring|ICMS Content Authoring]] — Creating and managing email content in ICMS
+* [[Email_Creatives|Email Creatives]] — Web-based tool for building and localizing email HTML
+* [[Create_an_Iris_campaign|Create an Iris Campaign]] — End-to-end campaign setup guide
+
+[[Category:Iris]]
