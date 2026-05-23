@@ -80,7 +80,8 @@ export const editorVisibilityService = {
     // Use body prefix for higher specificity to beat template and media query styles
     styleTag.textContent = RESPONSIVE_VISIBILITY_CSS + '\n' +
       'body div.mobile-only, body div.desktop-only { display: block !important; max-height: none !important; overflow: visible !important; opacity: 1 !important; }\n' +
-      'body span.mobile-only, body span.desktop-only { display: inline !important; max-height: none !important; overflow: visible !important; opacity: 1 !important; }';
+      'body span.mobile-only, body span.desktop-only { display: inline !important; max-height: none !important; overflow: visible !important; opacity: 1 !important; }\n' +
+      'a[style*="text-decoration"] { text-decoration: inherit !important; }';
     (doc.head || doc.documentElement).appendChild(styleTag);
   },
 
