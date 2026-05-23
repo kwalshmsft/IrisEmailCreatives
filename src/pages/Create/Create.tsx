@@ -955,12 +955,19 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
     setPreviewWidth(0);
     setResponsiveIssues(null);
     setSavedLocation(null);
+    savedLocationRef.current = null;
     setLastAutoSave(null);
     setCurrentLocale(navigator.language || 'en-US');
     setIsPublished(false);
     setIsDirty(false);
     setHtmlIsResponsive(false);
+    setShowUploadHtmlOption(true);
+    setPlainTextContent('');
+    setPlainTextGeneratedAt(null);
     lastWrittenToEditorRef.current = '';
+    // Reset URL to remove contentId
+    window.dispatchEvent(new CustomEvent('emailEditor:saved', { detail: { contentId: '', displayName: '' } }));
+    window.history.replaceState(null, '', '#/creatives/email/create');
   };
 
   const handlePublish = async () => {
