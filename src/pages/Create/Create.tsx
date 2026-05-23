@@ -453,7 +453,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
 
   // Load default template on mount (only when no entry was passed from gallery)
   React.useEffect(() => {
-    if (initialEntry) return; // Already have content from gallery
+    if (initialEntry || contentIdFromUrl) return; // Already have content from gallery or loading from URL
     let cancelled = false;
     (async () => {
       try {
