@@ -338,14 +338,11 @@ export const HowTo: React.FC = () => {
       <p style={styles.paragraph}>File structure example showing the zip layout:</p>
       <pre style={styles.codeBlock}>{`IrisEmailTemplate.zip
 ├─ en-US/
-│  ├─ content.xml
-│  └─ Newsletter_en-US.html
+│  └─ content.xml
 ├─ fr-FR/
-│  ├─ content.xml
-│  └─ Newsletter_fr-FR.html
+│  └─ content.xml
 └─ ja-JP/
-   ├─ content.xml
-   └─ Newsletter_ja-JP.html`}</pre>
+   └─ content.xml`}</pre>
 
       <hr style={styles.separator} />
 
