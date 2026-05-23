@@ -2,6 +2,7 @@ import React from 'react';
 import { useHistory } from 'react-router-dom';
 import { ContentGalleryEntry, galleryDbService, CONTENT_TAXONOMY } from '../../services/galleryDbService';
 import { DocumentAdd20Regular, ArrowUpload20Regular, DismissRegular, FilterRegular, DeleteRegular } from '@fluentui/react-icons';
+import ConfirmationDialog from '../../components/ConfirmationDialog/ConfirmationDialog';
 
 type SortField = 'name' | 'product' | 'updatedBy' | 'lastUpdated' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -159,6 +160,7 @@ export const Gallery: React.FC = () => {
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
   const [filterStatus, setFilterStatus] = React.useState<string | null>(null);
   const [showFilterPanel, setShowFilterPanel] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<ContentGalleryEntry | null>(null);
   const filterRef = React.useRef<HTMLDivElement>(null);
   const uploadInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -225,10 +227,15 @@ export const Gallery: React.FC = () => {
     history.push(`/creatives/email/create/${entry.contentId}`);
   };
 
-  const handleDelete = async (entry: ContentGalleryEntry) => {
-    if (!window.confirm(`Delete "${entry.displayName}"? This cannot be undone.`)) return;
-    await galleryDbService.deleteEntry(entry.contentId);
-    setEntries((prev) => prev.filter((e) => e.contentId !== entry.contentId));
+  const handleDelete = (entry: ContentGalleryEntry) => {
+    setDeleteTarget(entry);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await galleryDbService.deleteEntry(deleteTarget.contentId);
+    setEntries((prev) => prev.filter((e) => e.contentId !== deleteTarget.contentId));
+    setDeleteTarget(null);
   };
 
   const handleNewCreative = () => {
@@ -398,6 +405,14 @@ export const Gallery: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmationDialog
+        hidden={!deleteTarget}
+        title="Delete creative"
+        subText={`Delete "${deleteTarget?.displayName}"? This cannot be undone.`}
+        primaryButtonText="Delete"
+        onConfirm={() => void confirmDelete()}
+        onDismiss={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };
