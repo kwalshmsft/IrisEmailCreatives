@@ -610,6 +610,10 @@ export const responsiveAnalyzerService = {
           if (width && width > 480) {
             declarations.unshift(`max-width: ${width}px`);
             declarations.unshift('width: 100%');
+          } else if (width && width > 100) {
+            // Preserve moderate widths as inline style so layout survives
+            // Gmail stripping <style> blocks. Media query overrides on mobile.
+            declarations.unshift(`width: ${width}px`);
           }
           cell.setAttribute('style', `${Array.from(new Set(declarations)).join('; ')};`);
         }

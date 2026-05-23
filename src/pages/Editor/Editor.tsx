@@ -41,6 +41,8 @@ export const Editor: React.FC = () => {
       const detail = (event as CustomEvent<{ contentId: string; displayName: string; isPublished?: boolean }>).detail;
       if (detail?.contentId) {
         setCommentEntityId(detail.contentId);
+        // Update URL to include contentId so page reload returns to this document
+        history.replace(`/creatives/email/create/${detail.contentId}`);
       }
       if (detail?.isPublished !== undefined) {
         setIsPublished(detail.isPublished);
@@ -70,7 +72,8 @@ export const Editor: React.FC = () => {
     const newTab = data.value as EditorTab;
     setActiveTab(newTab);
     if (newTab === 'create') {
-      history.replace('/creatives/email/create');
+      const currentContentId = contentId || commentEntityId;
+      history.replace(currentContentId ? `/creatives/email/create/${currentContentId}` : '/creatives/email/create');
     } else {
       history.replace(`/creatives/email/${newTab}`);
     }

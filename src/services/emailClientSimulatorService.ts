@@ -16,7 +16,7 @@ export const EMAIL_CLIENTS: EmailClientInfo[] = [
 export const EMAIL_CLIENT_NOTICES: Record<EmailClient, string | null> = {
   'standard': null,
   'outlook-desktop': '⚠️ Outlook Desktop — max-width→width, flex/grid→block, no border-radius/shadows/opacity/transforms. MSO conditionals revealed, non-MSO content hidden.',
-  'gmail': '⚠️ Gmail — Stripped: <style> blocks, class/id attributes, data-* attributes, position styles. Only inline styles preserved.',
+  'gmail': '⚠️ Gmail — Stripped: <style> in <body>, data-* attributes, position styles, <link> stylesheets. Supports <style> in <head> including media queries.',
   'ios-mail': 'ℹ️ iOS Mail — WebKit rendering. Phone numbers auto-linked. Most CSS supported.',
 };
 
@@ -98,12 +98,9 @@ function simulateOutlookDesktop(html: string): string {
 function simulateGmail(html: string): string {
   let result = html;
 
-  // Gmail strips all <style> blocks entirely
-  result = result.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-
-  // Gmail strips class and id attributes
-  result = result.replace(/\s+class="[^"]*"/gi, '');
-  result = result.replace(/\s+id="[^"]*"/gi, '');
+  // Modern Gmail (since 2016) supports <style> in <head> including media queries.
+  // It only strips <style> blocks in <body>.
+  result = result.replace(/(<body[\s\S]*?)(<style[^>]*>[\s\S]*?<\/style>)/gi, (match, before, style) => before);
 
   // Gmail strips <link> stylesheet references
   result = result.replace(/<link[^>]*rel="stylesheet"[^>]*>/gi, '');
