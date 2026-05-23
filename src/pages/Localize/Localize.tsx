@@ -163,7 +163,7 @@ const buildIcmsVariantXml = (
   subjectLine: string,
 ): string => {
   // Build Razor subject template
-  const subjectRazor = `@{ string subject = "${subjectLine.replace(/"/g, '\\"')}"; try { if (!string.IsNullOrEmpty(Model.IsPreview)) {subject = "[**PROOF: " + Culture.Name + "] " + subject;}; } catch { } }@subject`;
+  const subjectRazor = `@{ string subject = "${subjectLine.replace(/"/g, '\\"')}"; try { if (Model.IsPreview == "True") {subject = "[**PROOF: " + Culture.Name + "] " + subject;}; } catch { } }@subject`;
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <content variantCulture="InvariantCulture">
