@@ -1201,6 +1201,8 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
     setLastAutoSave(new Date(entry.lastModifiedUtc));
     setCurrentLocale(entry.locale || extractHtmlLocale(entry.htmlContent) || null);
     setIsPublished(!!entry.published);
+    setPlainTextContent(entry.plainTextContent || '');
+    setPlainTextGeneratedAt(entry.plainTextGeneratedAtUtc ? new Date(entry.plainTextGeneratedAtUtc) : null);
     setIsDirty(false);
     setShowUploadHtmlOption(false);
     lastWrittenToEditorRef.current = '';
