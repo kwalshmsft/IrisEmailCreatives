@@ -360,7 +360,6 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
   const uploadHtmlInputRef = React.useRef<HTMLInputElement | null>(null);
   const suppressSyncRef = React.useRef(false);
   const htmlFromVisualRef = React.useRef(false);
-  const savePromptTimeoutRef = React.useRef<number | null>(null);
   const autoSaveIntervalRef = React.useRef<number | null>(null);
   const autoSaveCountdownRef = React.useRef<number | null>(null);
   const lastWrittenToEditorRef = React.useRef('');
@@ -381,8 +380,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
   const [savedLocation, setSavedLocation] = React.useState<SavedContentRef | null>(initialEntry?.contentId ? { contentId: initialEntry.contentId, productCategory: initialEntry.productCategory, productSubcategory: initialEntry.productSubcategory, surfaceName: initialEntry.surfaceName, displayName: initialEntry.displayName } : null);
   const [lastAutoSave, setLastAutoSave] = React.useState<Date | null>(null);
   const [autoSaveCountdown, setAutoSaveCountdown] = React.useState<number | null>(null);
-  const [showSavePrompt, setShowSavePrompt] = React.useState(false);
-  const [savePromptDismissed, setSavePromptDismissed] = React.useState(false);
+
   const [isDirty, setIsDirty] = React.useState(false);
   const [showUploadHtmlOption, setShowUploadHtmlOption] = React.useState(!initialEntry);
   const [isPublished, setIsPublished] = React.useState(!!initialEntry?.published);
@@ -446,9 +444,6 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
       if (visualSyncTimeoutRef.current !== null) {
         window.clearTimeout(visualSyncTimeoutRef.current);
       }
-      if (savePromptTimeoutRef.current !== null) {
-        window.clearTimeout(savePromptTimeoutRef.current);
-      }
       if (autoSaveIntervalRef.current !== null) {
         window.clearInterval(autoSaveIntervalRef.current);
       }
@@ -481,28 +476,9 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clearSavePromptTimer = () => {
-    if (savePromptTimeoutRef.current !== null) {
-      window.clearTimeout(savePromptTimeoutRef.current);
-      savePromptTimeoutRef.current = null;
-    }
-  };
-
-  const startSavePromptTimer = () => {
-    if (savedLocationRef.current || savePromptDismissed || savePromptTimeoutRef.current !== null) {
-      return;
-    }
-
-    savePromptTimeoutRef.current = window.setTimeout(() => {
-      setShowSavePrompt(true);
-      savePromptTimeoutRef.current = null;
-    }, 60000);
-  };
-
   const markDirty = () => {
     setIsDirty(true);
     setShowUploadHtmlOption(false);
-    startSavePromptTimer();
     if (plainTextGeneratedAt) {
       setHtmlModifiedSincePlainText(true);
     }
@@ -982,11 +958,8 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
     setLastAutoSave(null);
     setCurrentLocale(navigator.language || 'en-US');
     setIsPublished(false);
-    setShowSavePrompt(false);
-    setSavePromptDismissed(false);
     setIsDirty(false);
     setHtmlIsResponsive(false);
-    clearSavePromptTimer();
     lastWrittenToEditorRef.current = '';
   };
 
@@ -1228,9 +1201,6 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
     setLastAutoSave(new Date(entry.lastModifiedUtc));
     setCurrentLocale(entry.locale || extractHtmlLocale(entry.htmlContent) || null);
     setIsPublished(!!entry.published);
-    setShowSavePrompt(false);
-    setSavePromptDismissed(false);
-    clearSavePromptTimer();
     setIsDirty(false);
     setShowUploadHtmlOption(false);
     lastWrittenToEditorRef.current = '';
@@ -1763,39 +1733,6 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
           </button>
         </div>
       </div>
-
-      {showSavePrompt ? (
-        <div
-          style={{
-            ...pageStyles.card,
-            border: '1px solid #0078d4',
-            padding: 16,
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 12,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span><SaveRegular style={{ marginRight: 4 }} />You have unsaved work. Would you like to save?</span>
-          <div style={pageStyles.buttonRow}>
-            <button type="button" style={pageStyles.primaryButton} onClick={openSaveDialog}>
-              Save
-            </button>
-            <button
-              type="button"
-              style={pageStyles.button}
-              onClick={() => {
-                setShowSavePrompt(false);
-                setSavePromptDismissed(true);
-                clearSavePromptTimer();
-              }}
-            >
-              Not now
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       <div style={pageStyles.card}>
         <div style={pageStyles.cardBody}>
