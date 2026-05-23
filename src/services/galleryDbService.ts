@@ -164,19 +164,33 @@ const migrateIfNeeded = (entries: any[]): ContentGalleryEntry[] => {
   });
 };
 
+// --- Server API layer (shared persistent store) ---
+
+const API_BASE = '/api';
+
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T | null> {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, options);
+    if (res.status === 204) return null;
+    if (!res.ok) return null;
+    return await res.json() as T;
+  } catch {
+    return null;
+  }
+}
+
 export const galleryDbService = {
   async getAllEntries(): Promise<ContentGalleryEntry[]> {
+    const apiResult = await apiFetch<ContentGalleryEntry[]>('/entries');
+    if (apiResult) return apiResult;
+    // Fallback to IndexedDB for local-only mode
     const raw = await readEntries();
-    const entries = migrateIfNeeded(raw);
-    const valid = entries.filter((e) => e.contentId);
-    // Persist migration if any entries changed
-    if (raw.length > 0 && JSON.stringify(raw) !== JSON.stringify(valid)) {
-      await writeEntries(valid);
-    }
-    return valid;
+    return migrateIfNeeded(raw).filter((e) => e.contentId);
   },
 
   async generateContentId(): Promise<string> {
+    const apiResult = await apiFetch<{ contentId: string }>('/content-id', { method: 'POST' });
+    if (apiResult) return apiResult.contentId;
     return generateContentId();
   },
 
@@ -185,30 +199,43 @@ export const galleryDbService = {
       throw new Error('Content ID is required.');
     }
 
+    const apiResult = await apiFetch<ContentGalleryEntry>(`/entries/${entry.contentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    });
+    if (apiResult) return;
+
+    // Fallback to IndexedDB
     const normalizedEntry: ContentGalleryEntry = {
       ...entry,
       lastModifiedUtc: entry.lastModifiedUtc || new Date().toISOString(),
     };
-
     const entries = await readEntries();
     const migrated = migrateIfNeeded(entries);
     const filtered = migrated.filter((candidate) => candidate.contentId !== normalizedEntry.contentId);
-
     filtered.push(normalizedEntry);
     await writeEntries(filtered);
   },
 
   async getEntry(contentId: string): Promise<ContentGalleryEntry | null> {
+    const apiResult = await apiFetch<ContentGalleryEntry>(`/entries/${contentId}`);
+    if (apiResult) return apiResult;
     const entries = await readEntries();
     const migrated = migrateIfNeeded(entries);
     return migrated.find((entry) => entry.contentId === contentId) || null;
   },
 
   async deleteEntry(contentId: string): Promise<void> {
-    const entries = await readEntries();
-    const migrated = migrateIfNeeded(entries);
-    const filtered = migrated.filter((entry) => entry.contentId !== contentId);
-    await writeEntries(filtered);
+    const apiResult = await apiFetch<null>(`/entries/${contentId}`, { method: 'DELETE' });
+    if (apiResult === null && !navigator.onLine) {
+      // Only fall back to IndexedDB delete if truly offline
+      const entries = await readEntries();
+      const migrated = migrateIfNeeded(entries);
+      const filtered = migrated.filter((entry) => entry.contentId !== contentId);
+      await writeEntries(filtered);
+      return;
+    }
   },
 };
 
