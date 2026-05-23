@@ -209,9 +209,9 @@ export const editorVisibilityService = {
     const styleTag = doc.createElement('style');
     styleTag.id = VISIBILITY_OVERLAY_STYLE_ID;
     styleTag.textContent = [
-      '[data-vis-mobile] { outline: 2px dashed #0078d4 !important; outline-offset: 2px; }',
-      '[data-vis-desktop] { outline: 2px dashed #605e5c !important; outline-offset: 2px; }',
-      '[data-visibility-badge] { display: inline-block; margin-bottom: 6px; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-family: Segoe UI, sans-serif; color: #ffffff; }',
+      '[data-vis-mobile] { outline: 1px dashed #0078d4 !important; outline-offset: 1px; position: relative; }',
+      '[data-vis-desktop] { outline: 1px dashed #605e5c !important; outline-offset: 1px; position: relative; }',
+      '[data-visibility-badge] { position: absolute; top: -1px; left: -1px; z-index: 1; display: inline-block; padding: 1px 4px; border-radius: 0 0 3px 0; font-size: 9px; font-family: Segoe UI, sans-serif; color: #ffffff; opacity: 0.85; pointer-events: none; }',
       '[data-vis-mobile] > [data-visibility-badge] { background: #0078d4; }',
       '[data-vis-desktop] > [data-visibility-badge] { background: #605e5c; }',
       '[data-vis-mobile] { display: block !important; max-height: none !important; overflow: visible !important; opacity: 0.78; }',
@@ -234,7 +234,7 @@ export const editorVisibilityService = {
 
       const badge = doc.createElement('span');
       badge.setAttribute('data-visibility-badge', '');
-      badge.textContent = isMobileOnly ? '📱 Mobile Only' : '🖥 Desktop Only';
+      badge.textContent = isMobileOnly ? 'mobile' : 'desktop';
 
       if (isMobileOnly) {
         element.setAttribute('data-vis-mobile', '');
