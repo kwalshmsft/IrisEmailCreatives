@@ -2,12 +2,13 @@ import React from 'react';
 import { EditorToolbar } from './EditorToolbar';
 import { ImageEditor } from './ImageEditor';
 import { LinkEditor } from './LinkEditor';
-import { ContentGalleryEntry, galleryDbService } from '../../services/galleryDbService';
+import { LocaleAssets } from './LocaleAssets';
+import { ContentGalleryEntry, galleryDbService, CONTENT_TAXONOMY } from '../../services/galleryDbService';
 import { editorVisibilityService } from '../../services/editorVisibilityService';
 import { EmailClient, EMAIL_CLIENTS, EMAIL_CLIENT_NOTICES, emailClientSimulatorService } from '../../services/emailClientSimulatorService';
 import { ResponsiveIssue, responsiveAnalyzerService } from '../../services/responsiveAnalyzerService';
-import { GlobeRegular, EditRegular, SaveRegular, DeleteRegular, LockClosedRegular, LockOpenRegular, CheckmarkCircleRegular, PhoneLaptopRegular, ImageAddRegular, ArrowUploadRegular } from '@fluentui/react-icons';
-import { Combobox, Option } from '@fluentui/react-components';
+import { GlobeRegular, EditRegular, SaveRegular, DeleteRegular, LockClosedRegular, LockOpenRegular, CheckmarkCircleRegular, PhoneLaptopRegular, ImageAddRegular, ArrowUploadRegular, ArrowDownloadRegular, ChevronDownRegular, ChevronRightRegular } from '@fluentui/react-icons';
+import { Combobox, Option, Dialog, DialogSurface, DialogTitle, DialogBody, DialogContent, DialogActions, Button, Input } from '@fluentui/react-components';
 import ConfirmationDialog from '../../components/ConfirmationDialog/ConfirmationDialog';
 import { isRtlLocale, transformForPublish } from '../../services/rtlService';
 
@@ -29,12 +30,44 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-type EditorTab = 'visual' | 'html';
+function htmlToPlainText(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  // Remove script, style, head
+  doc.querySelectorAll('script, style, head').forEach((el) => el.remove());
+  // Convert <br> and block elements to newlines
+  doc.querySelectorAll('br').forEach((el) => el.replaceWith('\n'));
+  const blockTags = ['p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table'];
+  blockTags.forEach((tag) => {
+    doc.querySelectorAll(tag).forEach((el) => {
+      el.insertAdjacentText('afterend', '\n');
+    });
+  });
+  // Extract links as "text (url)"
+  doc.querySelectorAll('a[href]').forEach((el) => {
+    const href = el.getAttribute('href') || '';
+    const text = el.textContent || '';
+    if (href && !href.startsWith('#') && href !== text) {
+      el.replaceWith(`${text} (${href})`);
+    }
+  });
+  // Get text, decode entities, normalize whitespace
+  let text = doc.body?.textContent || '';
+  // Collapse multiple blank lines
+  text = text.replace(/[ \t]+/g, ' ');
+  text = text.replace(/ ?\n ?/g, '\n');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
+type EditorTab = 'visual' | 'html' | 'plaintext';
 type PreviewWidth = 0 | 768 | 375;
 
-interface SavedLocation {
-  productName: string;
-  fileName: string;
+interface SavedContentRef {
+  contentId: string;
+  productCategory: string;
+  productSubcategory: string;
+  surfaceName: string;
+  displayName: string;
 }
 
 interface ImageEditorState {
@@ -263,7 +296,11 @@ const extractHtmlLocale = (html: string): string | null => {
 // Module-level cache to survive StrictMode double-mount
 let _pendingOpenEntry: ContentGalleryEntry | undefined;
 
-export const Create: React.FC = () => {
+interface CreateProps {
+  contentIdFromUrl?: string;
+}
+
+export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
   // HashRouter doesn't support route state — read entry from sessionStorage
   const [initialEntry] = React.useState<ContentGalleryEntry | undefined>(() => {
     if (_pendingOpenEntry) {
@@ -283,10 +320,27 @@ export const Create: React.FC = () => {
   });
   const initialHtml = initialEntry?.htmlContent ? updateTitle(initialEntry.htmlContent, extractTitle(initialEntry.htmlContent)) : createBlankHtml('');
 
+  // Load entry from IndexedDB if URL has a contentId but no sessionStorage entry
+  React.useEffect(() => {
+    if (contentIdFromUrl && !initialEntry) {
+      galleryDbService.getEntry(contentIdFromUrl).then((entry) => {
+        if (entry) {
+          handleOpenEntry(entry);
+        }
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Clear module cache after stable mount
   React.useEffect(() => {
     _pendingOpenEntry = undefined;
-  }, []);
+    // Notify Editor of entity ID if opening an existing entry
+    if (initialEntry?.contentId) {
+      sessionStorage.setItem('emailEditor:commentEntityId', initialEntry.contentId);
+      sessionStorage.setItem('emailEditor:isPublished', initialEntry.published ? 'true' : 'false');
+      window.dispatchEvent(new CustomEvent('emailEditor:saved', { detail: { contentId: initialEntry.contentId, displayName: initialEntry.displayName, isPublished: !!initialEntry.published } }));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const responsiveResultsRef = React.useRef<HTMLDivElement | null>(null);
@@ -297,11 +351,12 @@ export const Create: React.FC = () => {
   const htmlFromVisualRef = React.useRef(false);
   const savePromptTimeoutRef = React.useRef<number | null>(null);
   const autoSaveIntervalRef = React.useRef<number | null>(null);
+  const autoSaveCountdownRef = React.useRef<number | null>(null);
   const lastWrittenToEditorRef = React.useRef('');
   const activeTabRef = React.useRef<EditorTab>('visual');
   const htmlContentRef = React.useRef(initialHtml);
   const subjectLineRef = React.useRef(initialEntry ? extractTitle(initialEntry.htmlContent) : '');
-  const savedLocationRef = React.useRef<SavedLocation | null>(initialEntry ? { productName: initialEntry.productName, fileName: initialEntry.fileName } : null);
+  const savedLocationRef = React.useRef<SavedContentRef | null>(initialEntry?.contentId ? { contentId: initialEntry.contentId, productCategory: initialEntry.productCategory, productSubcategory: initialEntry.productSubcategory, surfaceName: initialEntry.surfaceName, displayName: initialEntry.displayName } : null);
 
   const [activeTab, setActiveTab] = React.useState<EditorTab>('visual');
   const [htmlContent, setHtmlContent] = React.useState(initialHtml);
@@ -311,8 +366,10 @@ export const Create: React.FC = () => {
   const [showVisibility, setShowVisibility] = React.useState(false);
   const [responsiveIssues, setResponsiveIssues] = React.useState<ResponsiveIssueState[] | null>(null);
   const [isAnalyzingResponsive, setIsAnalyzingResponsive] = React.useState(false);
-  const [savedLocation, setSavedLocation] = React.useState<SavedLocation | null>(initialEntry ? { productName: initialEntry.productName, fileName: initialEntry.fileName } : null);
+  const [preResponsiveHtml, setPreResponsiveHtml] = React.useState<string | null>(null);
+  const [savedLocation, setSavedLocation] = React.useState<SavedContentRef | null>(initialEntry?.contentId ? { contentId: initialEntry.contentId, productCategory: initialEntry.productCategory, productSubcategory: initialEntry.productSubcategory, surfaceName: initialEntry.surfaceName, displayName: initialEntry.displayName } : null);
   const [lastAutoSave, setLastAutoSave] = React.useState<Date | null>(null);
+  const [autoSaveCountdown, setAutoSaveCountdown] = React.useState<number | null>(null);
   const [showSavePrompt, setShowSavePrompt] = React.useState(false);
   const [savePromptDismissed, setSavePromptDismissed] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
@@ -324,6 +381,7 @@ export const Create: React.FC = () => {
   const [confirmDialog, setConfirmDialog] = React.useState<{ type: 'publish' | 'unpublish' | 'clear'; title: string; subText: string } | null>(null);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [htmlIsResponsive, setHtmlIsResponsive] = React.useState(false);
+  const [previewCollapsed, setPreviewCollapsed] = React.useState(true);
   const [imageEditor, setImageEditor] = React.useState<ImageEditorState>({
     isOpen: false,
     index: -1,
@@ -340,6 +398,21 @@ export const Create: React.FC = () => {
     text: '',
     mode: 'create',
   });
+
+  // Plain text state
+  const [plainTextContent, setPlainTextContent] = React.useState(initialEntry?.plainTextContent || '');
+  const [plainTextGeneratedAt, setPlainTextGeneratedAt] = React.useState<Date | null>(
+    initialEntry?.plainTextGeneratedAtUtc ? new Date(initialEntry.plainTextGeneratedAtUtc) : null
+  );
+  const [htmlModifiedSincePlainText, setHtmlModifiedSincePlainText] = React.useState(false);
+  const localeAssetsRef = React.useRef<import('../../services/galleryDbService').LocaleAssetData[]>(initialEntry?.localeAssets ?? []);
+  const handleLocaleDataChange = React.useCallback((data: import('../../services/galleryDbService').LocaleAssetData[]) => {
+    localeAssetsRef.current = data;
+  }, []);
+
+  // Active editing locale: null = source locale, string = editing a translation
+  const [activeEditingLocale, setActiveEditingLocale] = React.useState<string | null>(null);
+  const sourceContentRef = React.useRef<{ html: string; subject: string; plainText: string } | null>(null);
 
   React.useEffect(() => {
     activeTabRef.current = activeTab;
@@ -419,6 +492,9 @@ export const Create: React.FC = () => {
     setIsDirty(true);
     setShowUploadHtmlOption(false);
     startSavePromptTimer();
+    if (plainTextGeneratedAt) {
+      setHtmlModifiedSincePlainText(true);
+    }
   };
 
   const getVisualDocument = () => iframeRef.current?.contentDocument || iframeRef.current?.contentWindow?.document || null;
@@ -679,44 +755,72 @@ export const Create: React.FC = () => {
       window.clearInterval(autoSaveIntervalRef.current);
       autoSaveIntervalRef.current = null;
     }
+    if (autoSaveCountdownRef.current !== null) {
+      window.clearInterval(autoSaveCountdownRef.current);
+      autoSaveCountdownRef.current = null;
+    }
+    setAutoSaveCountdown(null);
 
     if (!savedLocation || isPublished) {
       return;
     }
 
+    let secondsElapsed = 0;
+
     autoSaveIntervalRef.current = window.setInterval(() => {
-      const target = savedLocationRef.current;
-      if (!target) {
-        return;
+      secondsElapsed++;
+
+      // Show countdown starting at 50 seconds (10 seconds remaining)
+      if (secondsElapsed >= 50) {
+        setAutoSaveCountdown(60 - secondsElapsed);
       }
 
-      const htmlToSave = activeTabRef.current === 'visual' ? syncHtmlFromVisual() : updateTitle(htmlContentRef.current, subjectLineRef.current);
+      // Save at 60 seconds
+      if (secondsElapsed >= 60) {
+        secondsElapsed = 0;
+        setAutoSaveCountdown(null);
 
-      void (async () => {
-        const existing = await galleryDbService.getEntry(target.productName, target.fileName);
-        const entry: ContentGalleryEntry = {
-          productName: target.productName,
-          fileName: target.fileName,
-          htmlContent: htmlToSave,
-          sourceType: 'html',
-          lastModifiedUtc: new Date().toISOString(),
-          locale: existing?.locale,
-          published: existing?.published,
-          publishedAtUtc: existing?.publishedAtUtc,
-        };
+        const target = savedLocationRef.current;
+        if (!target) return;
 
-        await galleryDbService.saveEntry(entry);
-        setLastAutoSave(new Date(entry.lastModifiedUtc));
-        setIsDirty(false);
+        const htmlToSave = activeTabRef.current === 'visual' ? syncHtmlFromVisual() : updateTitle(htmlContentRef.current, subjectLineRef.current);
 
-      })();
-    }, 180000);
+        void (async () => {
+          const existing = await galleryDbService.getEntry(target.contentId);
+          const entry: ContentGalleryEntry = {
+            contentId: target.contentId,
+            productCategory: target.productCategory,
+            productSubcategory: target.productSubcategory,
+            surfaceName: target.surfaceName,
+            displayName: target.displayName,
+            htmlContent: htmlToSave,
+            sourceType: 'html',
+            lastModifiedUtc: new Date().toISOString(),
+            locale: existing?.locale,
+            published: existing?.published,
+            publishedAtUtc: existing?.publishedAtUtc,
+            plainTextContent: plainTextContent || existing?.plainTextContent,
+            plainTextGeneratedAtUtc: plainTextGeneratedAt?.toISOString() || existing?.plainTextGeneratedAtUtc,
+            localeAssets: localeAssetsRef.current.length > 0 ? localeAssetsRef.current : existing?.localeAssets,
+          };
+
+          await galleryDbService.saveEntry(entry);
+          setLastAutoSave(new Date(entry.lastModifiedUtc));
+          setIsDirty(false);
+        })();
+      }
+    }, 1000);
 
     return () => {
       if (autoSaveIntervalRef.current !== null) {
         window.clearInterval(autoSaveIntervalRef.current);
         autoSaveIntervalRef.current = null;
       }
+      if (autoSaveCountdownRef.current !== null) {
+        window.clearInterval(autoSaveCountdownRef.current);
+        autoSaveCountdownRef.current = null;
+      }
+      setAutoSaveCountdown(null);
     };
   }, [savedLocation, isPublished]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -728,10 +832,31 @@ export const Create: React.FC = () => {
   const saveNow = async () => {
     const location = savedLocationRef.current;
     if (!location) {
+      // Document not yet saved — open the save dialog so locale data persists
+      setShowSaveDialog(true);
       return;
     }
 
-    let html = getCurrentHtmlForPersistence();
+    // If editing a translation locale, flush editor state back to locale assets
+    if (activeEditingLocale) {
+      const currentHtml = activeTabRef.current === 'visual' ? syncHtmlFromVisual() : htmlContentRef.current;
+      localeAssetsRef.current = localeAssetsRef.current.map((d) =>
+        d.locale === activeEditingLocale
+          ? { ...d, html: currentHtml, subject: subjectLineRef.current, plainText: plainTextContent }
+          : d
+      );
+    }
+
+    // For source locale, use current editor content; for translation, use saved source
+    let html: string;
+    if (activeEditingLocale && sourceContentRef.current) {
+      html = sourceContentRef.current.html;
+    } else if (!activeEditingLocale) {
+      html = getCurrentHtmlForPersistence();
+    } else {
+      html = getCurrentHtmlForPersistence();
+    }
+
     // Embed locale in HTML if set
     if (currentLocale) {
       const existingLang = extractHtmlLocale(html);
@@ -744,20 +869,76 @@ export const Create: React.FC = () => {
       }
     }
 
+    const existing = await galleryDbService.getEntry(location.contentId);
+
     const entry: ContentGalleryEntry = {
-      productName: location.productName,
-      fileName: location.fileName,
+      contentId: location.contentId,
+      productCategory: location.productCategory,
+      productSubcategory: location.productSubcategory,
+      surfaceName: location.surfaceName,
+      displayName: location.displayName,
       htmlContent: html,
       sourceType: 'html',
       lastModifiedUtc: new Date().toISOString(),
       locale: currentLocale || undefined,
       published: isPublished || undefined,
-      publishedAtUtc: isPublished ? (await galleryDbService.getEntry(location.productName, location.fileName))?.publishedAtUtc : undefined,
+      publishedAtUtc: isPublished ? existing?.publishedAtUtc : undefined,
+      plainTextContent: (activeEditingLocale ? sourceContentRef.current?.plainText : plainTextContent) || undefined,
+      plainTextGeneratedAtUtc: plainTextGeneratedAt?.toISOString() || undefined,
+      localeAssets: localeAssetsRef.current.length > 0 ? localeAssetsRef.current : existing?.localeAssets,
     };
 
     await galleryDbService.saveEntry(entry);
     setLastAutoSave(new Date(entry.lastModifiedUtc));
     setIsDirty(false);
+  };
+
+  const switchEditingLocale = (targetLocale: string | null) => {
+    if (targetLocale === activeEditingLocale) return;
+
+    // Save current editor state back to the appropriate locale
+    const currentHtml = activeTabRef.current === 'visual' ? syncHtmlFromVisual() : htmlContentRef.current;
+    const currentSubject = subjectLineRef.current;
+    const currentPlainText = plainTextContent;
+
+    if (activeEditingLocale === null) {
+      // Switching away from source — save source state
+      sourceContentRef.current = { html: currentHtml, subject: currentSubject, plainText: currentPlainText };
+    } else {
+      // Switching away from a translation — update that locale's data
+      localeAssetsRef.current = localeAssetsRef.current.map((d) =>
+        d.locale === activeEditingLocale
+          ? { ...d, html: currentHtml, subject: currentSubject, plainText: currentPlainText }
+          : d
+      );
+    }
+
+    // Load target locale content into editor
+    if (targetLocale === null) {
+      // Switching back to source
+      const src = sourceContentRef.current || { html: initialHtml, subject: initialEntry ? extractTitle(initialEntry.htmlContent) : '', plainText: initialEntry?.plainTextContent || '' };
+      setHtmlContent(src.html);
+      htmlContentRef.current = src.html;
+      setSubjectLine(src.subject);
+      subjectLineRef.current = src.subject;
+      setPlainTextContent(src.plainText);
+      lastWrittenToEditorRef.current = '';
+    } else {
+      // Switching to a translation locale
+      const asset = localeAssetsRef.current.find((d) => d.locale === targetLocale);
+      const targetHtml = asset?.html || htmlContentRef.current;
+      const targetSubject = asset?.subject || '';
+      const targetPlainText = asset?.plainText || '';
+      setHtmlContent(targetHtml);
+      htmlContentRef.current = targetHtml;
+      setSubjectLine(targetSubject);
+      subjectLineRef.current = targetSubject;
+      setPlainTextContent(targetPlainText);
+      lastWrittenToEditorRef.current = '';
+    }
+
+    setActiveEditingLocale(targetLocale);
+    htmlFromVisualRef.current = false;
   };
 
   const switchTab = (nextTab: EditorTab) => {
@@ -810,7 +991,7 @@ export const Create: React.FC = () => {
     setConfirmDialog({
       type: 'publish',
       title: 'Publish content',
-      subText: `Publish "${location.productName} / ${location.fileName}"? This will lock the file from further editing until unpublished.`,
+      subText: `Publish "${location.displayName}"? This will lock the file from further editing until unpublished.`,
     });
   };
 
@@ -824,7 +1005,7 @@ export const Create: React.FC = () => {
     const location = savedLocationRef.current;
     if (!location) return;
 
-    const existing = await galleryDbService.getEntry(location.productName, location.fileName);
+    const existing = await galleryDbService.getEntry(location.contentId);
     if (!existing) return;
 
     const updated: ContentGalleryEntry = {
@@ -839,6 +1020,8 @@ export const Create: React.FC = () => {
     lastWrittenToEditorRef.current = '';
     htmlFromVisualRef.current = false;
     showToast('Published successfully');
+    sessionStorage.setItem('emailEditor:isPublished', 'true');
+    window.dispatchEvent(new CustomEvent('emailEditor:publishChanged', { detail: { isPublished: true } }));
   };
 
   const handleUnpublish = async () => {
@@ -848,7 +1031,7 @@ export const Create: React.FC = () => {
     setConfirmDialog({
       type: 'unpublish',
       title: 'Unpublish content',
-      subText: 'Unpublishing this content will remove it from the Localize tab. If localization has already begun, the source content may go out of sync with ICMS.\n\nAre you sure you want to unpublish?',
+      subText: 'Unpublishing this content will remove it from the Export tab. If localization has already begun, the source content may go out of sync with ICMS.\n\nAre you sure you want to unpublish?',
     });
   };
 
@@ -857,7 +1040,7 @@ export const Create: React.FC = () => {
     const location = savedLocationRef.current;
     if (!location) return;
 
-    const existing = await galleryDbService.getEntry(location.productName, location.fileName);
+    const existing = await galleryDbService.getEntry(location.contentId);
     if (!existing) return;
 
     const updated: ContentGalleryEntry = {
@@ -869,16 +1052,67 @@ export const Create: React.FC = () => {
     await galleryDbService.saveEntry(updated);
     setIsPublished(false);
     showToast('Unpublished');
+    sessionStorage.setItem('emailEditor:isPublished', 'false');
+    window.dispatchEvent(new CustomEvent('emailEditor:publishChanged', { detail: { isPublished: false } }));
   };
 
   // Upload Image stub — will integrate with blob storage service
+  const [uploadImageDialog, setUploadImageDialog] = React.useState<{ isOpen: boolean; file: File | null; uploading: boolean; resultUrl: string }>({ isOpen: false, file: null, uploading: false, resultUrl: '' });
+  const uploadImageInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const handleUploadImage = () => {
-    // TODO: Open a file picker, upload to blob storage, and return the URL
-    const url = window.prompt('Upload Image\n\nThis feature will upload an image to blob storage and return a URL.\n\nFor now, paste an image URL:');
-    if (url) {
-      void navigator.clipboard.writeText(url);
+    setUploadImageDialog({ isOpen: true, file: null, uploading: false, resultUrl: '' });
+  };
+
+  const handleUploadImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) {
+      setUploadImageDialog((prev) => ({ ...prev, file }));
+    }
+  };
+
+  const handleUploadImageConfirm = async () => {
+    if (!uploadImageDialog.file) return;
+    setUploadImageDialog((prev) => ({ ...prev, uploading: true }));
+
+    // TODO: Replace with actual blob storage upload
+    // Stub: create a local object URL to simulate the upload
+    const objectUrl = URL.createObjectURL(uploadImageDialog.file);
+    // Simulate upload delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    setUploadImageDialog((prev) => ({ ...prev, uploading: false, resultUrl: objectUrl }));
+  };
+
+  const handleUploadImageCopyUrl = () => {
+    if (uploadImageDialog.resultUrl) {
+      void navigator.clipboard.writeText(uploadImageDialog.resultUrl);
       showToast('Image URL copied to clipboard');
     }
+    setUploadImageDialog({ isOpen: false, file: null, uploading: false, resultUrl: '' });
+  };
+
+  const handleDownloadHtml = () => {
+    const html = activeTab === 'visual' ? syncHtmlFromVisual() : updateTitle(htmlContent || DEFAULT_HTML, subjectLine);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = savedLocation?.displayName ? `${savedLocation.displayName}.html` : 'email-creative.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleGeneratePlainText = () => {
+    const html = activeTab === 'visual' ? syncHtmlFromVisual() : updateTitle(htmlContent || DEFAULT_HTML, subjectLine);
+    const text = htmlToPlainText(html);
+    setPlainTextContent(text);
+    setPlainTextGeneratedAt(new Date());
+    setHtmlModifiedSincePlainText(false);
+    showToast('Plain text generated from HTML');
   };
 
   const handleUploadHtmlFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -899,83 +1133,45 @@ export const Create: React.FC = () => {
 
   // Save dialog state
   const [showSaveDialog, setShowSaveDialog] = React.useState(false);
-  const [saveDialogProduct, setSaveDialogProduct] = React.useState('');
-  const [saveDialogSubfolder, setSaveDialogSubfolder] = React.useState('');
-  const [saveDialogFileName, setSaveDialogFileName] = React.useState('');
+  const [saveDialogDisplayName, setSaveDialogDisplayName] = React.useState('');
   const [saveDialogMode, setSaveDialogMode] = React.useState<'save' | 'saveAs'>('save');
-  const [existingProducts, setExistingProducts] = React.useState<string[]>([]);
-  const [existingSubfolders, setExistingSubfolders] = React.useState<string[]>([]);
-
-  const loadExistingFolders = async () => {
-    const allEntries = await galleryDbService.getAllEntries();
-    const products = Array.from(new Set(allEntries.map(e => {
-      const parts = e.productName.split('/');
-      return parts[0];
-    }))).filter(p => p && p !== 'UploadsFromLocalization' && p !== 'UploadsFromGallery').sort();
-    setExistingProducts(products);
-  };
-
-  const loadSubfoldersForProduct = (product: string) => {
-    galleryDbService.getAllEntries().then(allEntries => {
-      const subs = Array.from(new Set(allEntries
-        .filter(e => e.productName.startsWith(product + '/'))
-        .map(e => e.productName.slice(product.length + 1))
-      )).sort();
-      setExistingSubfolders(subs);
-    });
-  };
-
-  const sanitizePath = (value: string) => value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_.]/g, '');
+  const [editingUnsavedName, setEditingUnsavedName] = React.useState(false);
+  const [unsavedNameValue, setUnsavedNameValue] = React.useState('');
+  const unsavedNameInputRef = React.useRef<HTMLInputElement>(null);
 
   const openSaveDialog = () => {
     const current = savedLocationRef.current;
-    if (current?.productName) {
-      const parts = current.productName.split('/');
-      setSaveDialogProduct(parts[0]);
-      setSaveDialogSubfolder(parts.slice(1).join('/'));
-    } else {
-      setSaveDialogProduct('');
-      setSaveDialogSubfolder('');
-    }
-    setSaveDialogFileName(current?.fileName || '');
+    setSaveDialogDisplayName(current?.displayName || '');
     setSaveDialogMode('save');
     setShowSaveDialog(true);
-    void loadExistingFolders();
-    if (current?.productName) {
-      loadSubfoldersForProduct(current.productName.split('/')[0]);
-    }
   };
 
   const openSaveAsDialog = () => {
-    const current = savedLocationRef.current;
-    if (current?.productName) {
-      const parts = current.productName.split('/');
-      setSaveDialogProduct(parts[0]);
-      setSaveDialogSubfolder(parts.slice(1).join('/'));
-    } else {
-      setSaveDialogProduct('');
-      setSaveDialogSubfolder('');
-    }
-    setSaveDialogFileName('');
+    setSaveDialogDisplayName('');
     setSaveDialogMode('saveAs');
     setShowSaveDialog(true);
-    void loadExistingFolders();
-    if (current?.productName) {
-      loadSubfoldersForProduct(current.productName.split('/')[0]);
-    }
   };
 
   const handleSaveDialogConfirm = async () => {
-    const product = sanitizePath(saveDialogProduct.trim());
-    const subfolder = sanitizePath(saveDialogSubfolder.trim());
-    const fileName = sanitizePath(saveDialogFileName.trim());
-    if (!product || !fileName) return;
+    const displayName = saveDialogDisplayName.trim();
+    if (!displayName) return;
 
-    const productName = subfolder ? `${product}/${subfolder}` : product;
+    const current = savedLocationRef.current;
+    const contentId = (saveDialogMode === 'save' && current?.contentId)
+      ? current.contentId
+      : await galleryDbService.generateContentId();
+    const productCategory = current?.productCategory || CONTENT_TAXONOMY.productCategory;
+    const productSubcategory = current?.productSubcategory || CONTENT_TAXONOMY.productSubcategory;
+    const surfaceName = current?.surfaceName || CONTENT_TAXONOMY.surfaceName;
+
+    const existing = current?.contentId ? await galleryDbService.getEntry(current.contentId) : null;
 
     const entry: ContentGalleryEntry = {
-      productName,
-      fileName,
+      contentId,
+      productCategory,
+      productSubcategory,
+      surfaceName,
+      displayName,
       htmlContent: getCurrentHtmlForPersistence(),
       sourceType: 'html',
       lastModifiedUtc: new Date().toISOString(),
@@ -984,9 +1180,17 @@ export const Create: React.FC = () => {
       published: isPublished,
       publishedAtUtc: isPublished ? new Date().toISOString() : undefined,
       publishedHtml: isPublished ? getCurrentHtmlForPersistence() : undefined,
+      plainTextContent: plainTextContent || undefined,
+      plainTextGeneratedAtUtc: plainTextGeneratedAt?.toISOString() || undefined,
+      localeAssets: localeAssetsRef.current.length > 0 ? localeAssetsRef.current : existing?.localeAssets,
     };
     await galleryDbService.saveEntry(entry);
-    setSavedLocation({ productName, fileName });
+    const ref: SavedContentRef = { contentId, productCategory, productSubcategory, surfaceName, displayName };
+    setSavedLocation(ref);
+    savedLocationRef.current = ref;
+    // Notify Editor of the entity ID for comments
+    sessionStorage.setItem('emailEditor:commentEntityId', contentId);
+    window.dispatchEvent(new CustomEvent('emailEditor:saved', { detail: { contentId, displayName, isPublished } }));
     setLastAutoSave(new Date(entry.lastModifiedUtc));
     setIsDirty(false);
     setShowSaveDialog(false);
@@ -1007,7 +1211,9 @@ export const Create: React.FC = () => {
     setHtmlContent(nextHtml);
     setSubjectLine(extractTitle(nextHtml));
     setResponsiveIssues(null);
-    setSavedLocation({ productName: entry.productName, fileName: entry.fileName });
+    const ref: SavedContentRef = { contentId: entry.contentId, productCategory: entry.productCategory, productSubcategory: entry.productSubcategory, surfaceName: entry.surfaceName, displayName: entry.displayName };
+    setSavedLocation(ref);
+    savedLocationRef.current = ref;
     setLastAutoSave(new Date(entry.lastModifiedUtc));
     setCurrentLocale(entry.locale || extractHtmlLocale(entry.htmlContent) || null);
     setIsPublished(!!entry.published);
@@ -1048,11 +1254,25 @@ export const Create: React.FC = () => {
       return;
     }
 
+    // Store current HTML so user can revert
+    setPreResponsiveHtml(htmlContent);
+
     const nextHtml = responsiveAnalyzerService.injectResponsiveCss(htmlContent, acceptedTypes);
     htmlFromVisualRef.current = false;
     setHtmlContent(updateTitle(nextHtml, subjectLineRef.current));
     setResponsiveIssues(null);
     setHtmlIsResponsive(true);
+    markDirty();
+  };
+
+  const revertResponsiveFixes = () => {
+    if (!preResponsiveHtml) return;
+    htmlFromVisualRef.current = false;
+    setHtmlContent(preResponsiveHtml);
+    htmlContentRef.current = preResponsiveHtml;
+    lastWrittenToEditorRef.current = '';
+    setPreResponsiveHtml(null);
+    setHtmlIsResponsive(false);
     markDirty();
   };
 
@@ -1383,15 +1603,57 @@ export const Create: React.FC = () => {
           <CheckmarkCircleRegular style={{ marginRight: 6 }} />{toastMessage}
         </div>
       ) : null}
+      <div>
+        <h1 style={{ margin: '12px 0 16px 0', fontSize: 24, fontWeight: 600, fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" }}>Iris Email Editor</h1>
+        <p style={{ margin: 0, color: '#605e5c', lineHeight: 1.5 }}>Create, revise, review, localize and publish email content for Iris Exchange Delivery campaigns.</p>
+      </div>
       <div style={pageStyles.indicatorBar}>
         <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
           <span style={{ color: '#605e5c' }}>Working on: </span>
           <strong>
-            {savedLocation ? `${savedLocation.productName} / ${savedLocation.fileName}` : 'Unsaved document'}
+            {savedLocation ? (
+              `${savedLocation.surfaceName} / ${savedLocation.displayName}`
+            ) : editingUnsavedName ? (
+              <input
+                ref={unsavedNameInputRef}
+                type="text"
+                value={unsavedNameValue}
+                onChange={(e) => setUnsavedNameValue(e.target.value)}
+                onBlur={() => {
+                  setEditingUnsavedName(false);
+                  const name = unsavedNameValue.trim();
+                  if (name) {
+                    setSaveDialogDisplayName(name);
+                    setSaveDialogMode('save');
+                    setShowSaveDialog(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur();
+                  } else if (e.key === 'Escape') {
+                    setEditingUnsavedName(false);
+                  }
+                }}
+                style={{ border: 'none', borderBottom: '1px solid #0078d4', outline: 'none', fontWeight: 600, fontSize: 'inherit', fontFamily: 'inherit', padding: '0 2px', minWidth: 140 }}
+                placeholder="Enter document name"
+                autoFocus
+              />
+            ) : (
+              <span
+                onClick={() => { setUnsavedNameValue(''); setEditingUnsavedName(true); setTimeout(() => unsavedNameInputRef.current?.focus(), 0); }}
+                style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                title="Click to name and save this document"
+              >
+                Unsaved document
+              </span>
+            )}
           </strong>
           <span style={{ marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <GlobeRegular style={{ fontSize: 14, color: '#605e5c' }} />
-            {editingLocale ? (
+            {activeEditingLocale ? (
+              <span style={{ fontSize: 12, color: '#0078d4', fontWeight: 600 }}>{activeEditingLocale}</span>
+            ) : editingLocale ? (
               <Combobox
                 freeform
                 autoComplete="on"
@@ -1437,7 +1699,14 @@ export const Create: React.FC = () => {
             )}
           </span>
           {savedLocation && lastAutoSave ? (
-            <span style={{ marginLeft: 12, color: '#605e5c', display: 'inline-flex', alignItems: 'center', gap: 4 }}><SaveRegular style={{ fontSize: 14 }} /> {formatClockTime(lastAutoSave)}</span>
+            <span style={{ marginLeft: 12, color: '#605e5c', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <SaveRegular style={{ fontSize: 14 }} /> {formatClockTime(lastAutoSave)}
+              {autoSaveCountdown !== null && <span style={{ color: '#0078d4', fontWeight: 500 }}> (saving in {autoSaveCountdown}s)</span>}
+            </span>
+          ) : savedLocation && autoSaveCountdown !== null ? (
+            <span style={{ marginLeft: 12, color: '#0078d4', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <SaveRegular style={{ fontSize: 14 }} /> saving in {autoSaveCountdown}s
+            </span>
           ) : null}
           {isDirty && !isPublished ? <span style={{ marginLeft: 12, color: '#a4262c' }}>Unsaved changes</span> : null}
           {isPublished ? (
@@ -1519,8 +1788,49 @@ export const Create: React.FC = () => {
 
       <div style={pageStyles.card}>
         <div style={pageStyles.cardBody}>
+          {/* Locale switcher */}
+          {localeAssetsRef.current.some((d) => d.html) && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+              <GlobeRegular style={{ fontSize: 14, color: '#605e5c' }} />
+              <button
+                type="button"
+                onClick={() => switchEditingLocale(null)}
+                style={{
+                  padding: '3px 10px',
+                  fontSize: 12,
+                  border: activeEditingLocale === null ? '1px solid #0078d4' : '1px solid #e1dfdd',
+                  borderRadius: 3,
+                  background: activeEditingLocale === null ? '#e8f4fd' : '#fff',
+                  color: activeEditingLocale === null ? '#0078d4' : '#323130',
+                  fontWeight: activeEditingLocale === null ? 600 : 400,
+                  cursor: 'pointer',
+                }}
+              >
+                {currentLocale || 'Source'} ★
+              </button>
+              {localeAssetsRef.current.filter((d) => d.html).map((d) => (
+                <button
+                  key={d.locale}
+                  type="button"
+                  onClick={() => switchEditingLocale(d.locale)}
+                  style={{
+                    padding: '3px 10px',
+                    fontSize: 12,
+                    border: activeEditingLocale === d.locale ? '1px solid #0078d4' : '1px solid #e1dfdd',
+                    borderRadius: 3,
+                    background: activeEditingLocale === d.locale ? '#e8f4fd' : '#fff',
+                    color: activeEditingLocale === d.locale ? '#0078d4' : '#323130',
+                    fontWeight: activeEditingLocale === d.locale ? 600 : 400,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {d.locale}
+                </button>
+              ))}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-            <label style={{ fontSize: 12, color: '#605e5c', fontWeight: 600, whiteSpace: 'nowrap' }}>Subject:</label>
+            <label style={{ fontSize: 14, color: '#605e5c', fontWeight: 600, whiteSpace: 'nowrap' }}>Subject:</label>
             <input
               value={subjectLine}
               placeholder="Email subject — auto-detected from <title> tag"
@@ -1528,16 +1838,17 @@ export const Create: React.FC = () => {
               onChange={(event) => {
                 const nextValue = event.target.value;
                 setSubjectLine(nextValue);
-                const updatedHtml = updateTitle(getCurrentHtmlForPersistence(), nextValue);
-                if (activeTabRef.current === 'visual') {
-                  htmlFromVisualRef.current = true;
-                } else {
-                  htmlFromVisualRef.current = false;
-                }
+                subjectLineRef.current = nextValue;
+                const baseHtml = htmlContentRef.current || DEFAULT_HTML;
+                const updatedHtml = updateTitle(baseHtml, nextValue);
+                htmlContentRef.current = updatedHtml;
                 setHtmlContent(updatedHtml);
                 if (activeTabRef.current === 'visual') {
+                  htmlFromVisualRef.current = true;
                   updateVisualDocumentTitle(nextValue);
                   lastWrittenToEditorRef.current = updatedHtml;
+                } else {
+                  htmlFromVisualRef.current = false;
                 }
                 markDirty();
               }}
@@ -1545,14 +1856,14 @@ export const Create: React.FC = () => {
           </div>
           <div style={{ ...pageStyles.buttonRow, marginBottom: 12, justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              {(['visual', 'html'] as EditorTab[]).map((tab) => (
+              {(['visual', 'html', 'plaintext'] as EditorTab[]).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   style={activeTab === tab ? pageStyles.tabButtonActive : pageStyles.tabButton}
                   onClick={() => switchTab(tab)}
                 >
-                  {tab === 'visual' ? 'Visual Editor' : 'Raw HTML'}
+                  {tab === 'visual' ? 'Visual Editor' : tab === 'html' ? 'Raw HTML' : 'Plain Text'}
                 </button>
               ))}
               {showUploadHtmlOption && (
@@ -1565,9 +1876,14 @@ export const Create: React.FC = () => {
                 </button>
               )}
             </div>
-            <button type="button" style={{ ...pageStyles.button, color: '#0078d4', borderColor: '#0078d4', fontSize: 13, padding: '6px 10px' }} onClick={handleUploadImage}>
-              <ImageAddRegular style={{ marginRight: 4 }} /> Upload Image
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button type="button" style={{ ...pageStyles.button, color: '#0078d4', borderColor: '#0078d4', fontSize: 13, padding: '6px 10px' }} onClick={handleUploadImage}>
+                <ImageAddRegular style={{ marginRight: 4 }} /> Upload Image
+              </button>
+              <button type="button" style={{ ...pageStyles.button, color: '#0078d4', borderColor: '#0078d4', fontSize: 13, padding: '6px 10px' }} onClick={handleDownloadHtml}>
+                <ArrowDownloadRegular style={{ marginRight: 4 }} /> Download HTML
+              </button>
+            </div>
           </div>
           <input
             ref={uploadHtmlInputRef}
@@ -1637,12 +1953,60 @@ export const Create: React.FC = () => {
               />
             </>
           ) : null}
+
+          {activeTab === 'plaintext' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  type="button"
+                  style={{ ...pageStyles.button, color: '#0078d4', borderColor: '#0078d4', fontSize: 13, padding: '6px 10px' }}
+                  onClick={handleGeneratePlainText}
+                >
+                  {plainTextContent ? 'Regenerate from HTML' : 'Generate from HTML'}
+                </button>
+                {plainTextGeneratedAt && (
+                  <span style={{ fontSize: 12, color: '#605e5c' }}>
+                    Last generated: {plainTextGeneratedAt.toLocaleString()}
+                  </span>
+                )}
+              </div>
+              {htmlModifiedSincePlainText && plainTextContent && (
+                <div style={{ padding: '8px 12px', backgroundColor: '#fff4ce', border: '1px solid #f7d94c', borderRadius: 4, fontSize: 13, color: '#323130' }}>
+                  ⚠️ The HTML content has been modified since this plain text was generated. Consider regenerating.
+                </div>
+              )}
+              {plainTextContent ? (
+                <textarea
+                  rows={24}
+                  value={plainTextContent}
+                  style={{ ...pageStyles.textarea, fontFamily: 'Consolas, monospace', whiteSpace: 'pre-wrap' }}
+                  onChange={(e) => {
+                    setPlainTextContent(e.target.value);
+                    markDirty();
+                  }}
+                />
+              ) : (
+                <div style={{ padding: 24, textAlign: 'center', color: '#605e5c', border: '1px dashed #8a8886', borderRadius: 4 }}>
+                  No plain text version has been generated yet. Click "Generate from HTML" to create one from the current HTML content.
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 
+      <LocaleAssets htmlContent={htmlContent} sourceLocale={currentLocale} displayName={savedLocationRef.current?.displayName} initialLocaleData={initialEntry?.localeAssets} onLocaleDataChange={handleLocaleDataChange} onSaveRequested={saveNow} />
+
       {htmlContent.trim() ? (
         <div style={pageStyles.card}>
-          <div style={pageStyles.cardHeader}>Preview</div>
+          <div
+            style={{ ...pageStyles.cardHeader, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => setPreviewCollapsed((c) => !c)}
+          >
+            <span>{previewCollapsed ? <ChevronRightRegular /> : <ChevronDownRegular />}</span>
+            <span>Preview</span>
+          </div>
+          {!previewCollapsed && (
           <div style={pageStyles.cardBody}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12, alignItems: 'center' }}>
               <div>
@@ -1651,6 +2015,13 @@ export const Create: React.FC = () => {
                   {isAnalyzingResponsive ? 'Analyzing...' : 'Check Responsiveness'}
                 </button>
               </div>
+              {preResponsiveHtml && (
+                <div>
+                  <button type="button" style={{ ...pageStyles.button, borderColor: '#a4262c', color: '#a4262c' }} onClick={revertResponsiveFixes} title="Revert responsive CSS fixes">
+                    Revert Fixes
+                  </button>
+                </div>
+              )}
               <div style={{ marginLeft: 'auto', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: '#605e5c', fontWeight: 600 }}>Viewport:</span>
@@ -1699,11 +2070,11 @@ export const Create: React.FC = () => {
               </div>
             ) : null}
             <div style={pageStyles.previewShell}>
-              <div style={{ maxWidth: previewWidth || '100%', margin: '0 auto', backgroundColor: '#ffffff' }}>
+              <div style={{ maxWidth: previewWidth || '100%', width: previewWidth || '100%', margin: '0 auto', backgroundColor: '#ffffff', overflow: 'hidden' }}>
                 <iframe
                   title="Email preview"
                   srcDoc={previewContent}
-                  style={{ width: '100%', height: 600, border: '1px solid #e1dfdd', backgroundColor: '#ffffff' }}
+                  style={{ width: previewWidth || '100%', maxWidth: '100%', height: 600, border: '1px solid #e1dfdd', backgroundColor: '#ffffff' }}
                 />
               </div>
             </div>
@@ -1806,6 +2177,7 @@ export const Create: React.FC = () => {
               ) : null}
             </div>
           </div>
+          )}
         </div>
       ) : null}
 
@@ -1821,6 +2193,7 @@ export const Create: React.FC = () => {
         onAltChange={(value) => setImageEditor((current) => ({ ...current, alt: value }))}
         onLinkHrefChange={(value) => setImageEditor((current) => ({ ...current, linkHref: value }))}
         onLinkAliasChange={(value) => setImageEditor((current) => ({ ...current, linkAlias: value }))}
+        onDimensionsChange={(w, h) => setImageEditor((current) => ({ ...current, width: w, height: h }))}
         onApply={applyImageChanges}
         onClose={() => setImageEditor((current) => ({ ...current, isOpen: false }))}
       />
@@ -1857,69 +2230,100 @@ export const Create: React.FC = () => {
       />
 
       {/* Save Dialog */}
+      {/* Upload Image Dialog */}
+      <Dialog open={uploadImageDialog.isOpen} onOpenChange={(_, data) => { if (!data.open) setUploadImageDialog({ isOpen: false, file: null, uploading: false, resultUrl: '' }); }}>
+        <DialogSurface>
+          <DialogTitle>Upload Image</DialogTitle>
+          <DialogBody>
+            <DialogContent>
+              {!uploadImageDialog.resultUrl ? (
+                <>
+                  <p style={{ margin: '0 0 12px', color: '#605e5c', fontSize: 13 }}>
+                    Select an image from your computer to upload. You'll receive a URL to use in your email content.
+                  </p>
+                  <input
+                    ref={uploadImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleUploadImageFileSelect}
+                  />
+                  <Button
+                    appearance="outline"
+                    onClick={() => uploadImageInputRef.current?.click()}
+                    icon={<ImageAddRegular />}
+                  >
+                    Choose Image…
+                  </Button>
+                  {uploadImageDialog.file && (
+                    <p style={{ margin: '8px 0 0', fontSize: 13, color: '#323130' }}>
+                      Selected: <strong>{uploadImageDialog.file.name}</strong> ({(uploadImageDialog.file.size / 1024).toFixed(1)} KB)
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p style={{ margin: '0 0 8px', color: '#107c10', fontSize: 13, fontWeight: 500 }}>
+                    ✓ Image uploaded successfully
+                  </p>
+                  <Input
+                    value={uploadImageDialog.resultUrl}
+                    readOnly
+                    style={{ width: '100%' }}
+                  />
+                </>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setUploadImageDialog({ isOpen: false, file: null, uploading: false, resultUrl: '' })}>
+                {uploadImageDialog.resultUrl ? 'Close' : 'Cancel'}
+              </Button>
+              {!uploadImageDialog.resultUrl ? (
+                <Button
+                  appearance="primary"
+                  onClick={() => void handleUploadImageConfirm()}
+                  disabled={!uploadImageDialog.file || uploadImageDialog.uploading}
+                >
+                  {uploadImageDialog.uploading ? 'Uploading…' : 'Upload'}
+                </Button>
+              ) : (
+                <Button appearance="primary" onClick={handleUploadImageCopyUrl}>
+                  Copy URL
+                </Button>
+              )}
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
       {showSaveDialog && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: 24, width: 440, boxShadow: '0 8px 16px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>{saveDialogMode === 'save' ? 'Save' : 'Save As'}</h3>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Product folder</label>
-              <Combobox
-                freeform
-                value={saveDialogProduct}
-                onInput={(e) => {
-                  const val = sanitizePath((e.target as HTMLInputElement).value);
-                  setSaveDialogProduct(val);
-                  loadSubfoldersForProduct(val);
-                }}
-                onOptionSelect={(_e, data) => {
-                  const val = data.optionText || '';
-                  setSaveDialogProduct(val);
-                  loadSubfoldersForProduct(val);
-                }}
-                placeholder="Select or type a product folder"
-                style={{ width: '100%' }}
-              >
-                {existingProducts.map(p => <Option key={p} value={p}>{p}</Option>)}
-              </Combobox>
-              <span style={{ fontSize: 11, color: '#605e5c', marginTop: 2, display: 'block' }}>No spaces allowed. Use hyphens or camelCase.</span>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Subfolder <span style={{ fontWeight: 400, color: '#605e5c' }}>(optional)</span></label>
-              <Combobox
-                freeform
-                value={saveDialogSubfolder}
-                onInput={(e) => setSaveDialogSubfolder(sanitizePath((e.target as HTMLInputElement).value))}
-                onOptionSelect={(_e, data) => setSaveDialogSubfolder(data.optionText || '')}
-                placeholder="e.g. en-US or v2"
-                style={{ width: '100%' }}
-              >
-                {existingSubfolders.map(s => <Option key={s} value={s}>{s}</Option>)}
-              </Combobox>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>File name</label>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Display Name</label>
               <input
                 type="text"
-                value={saveDialogFileName}
-                onChange={(e) => setSaveDialogFileName(sanitizePath(e.target.value))}
+                value={saveDialogDisplayName}
+                onChange={(e) => setSaveDialogDisplayName(e.target.value)}
                 style={pageStyles.input}
-                placeholder="e.g. welcome-email.html"
+                placeholder="e.g. Welcome Email"
                 autoFocus
               />
             </div>
 
-            {/* Path preview */}
-            {(saveDialogProduct || saveDialogFileName) && (
-              <div style={{ marginBottom: 16, padding: '8px 12px', backgroundColor: '#f3f2f1', borderRadius: 4, fontSize: 12, fontFamily: 'Consolas, monospace', color: '#323130' }}>
-                <span style={{ color: '#605e5c' }}>Path: </span>
-                {sanitizePath(saveDialogProduct.trim())}
-                {saveDialogSubfolder.trim() ? '/' + sanitizePath(saveDialogSubfolder.trim()) : ''}
-                {saveDialogFileName.trim() ? '/' + sanitizePath(saveDialogFileName.trim()) : ''}
-              </div>
-            )}
+            <div style={{ marginBottom: 12, padding: '8px 12px', backgroundColor: '#f3f2f1', borderRadius: 4, fontSize: 12, color: '#605e5c' }}>
+              <div><strong>Product Category:</strong> {savedLocationRef.current?.productCategory || CONTENT_TAXONOMY.productCategory}</div>
+              <div><strong>Product Subcategory:</strong> {savedLocationRef.current?.productSubcategory || CONTENT_TAXONOMY.productSubcategory}</div>
+              <div><strong>Surface:</strong> {savedLocationRef.current?.surfaceName || CONTENT_TAXONOMY.surfaceName}</div>
+              {savedLocationRef.current?.contentId && saveDialogMode === 'save' && (
+                <div><strong>Content ID:</strong> {savedLocationRef.current.contentId}</div>
+              )}
+              {saveDialogMode === 'saveAs' && (
+                <div><em>A new Content ID will be assigned.</em></div>
+              )}
+            </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" style={pageStyles.button} onClick={() => setShowSaveDialog(false)}>Cancel</button>
@@ -1927,7 +2331,7 @@ export const Create: React.FC = () => {
                 type="button"
                 style={pageStyles.primaryButton}
                 onClick={() => void handleSaveDialogConfirm()}
-                disabled={!saveDialogProduct.trim() || !saveDialogFileName.trim()}
+                disabled={!saveDialogDisplayName.trim()}
               >
                 Save
               </button>

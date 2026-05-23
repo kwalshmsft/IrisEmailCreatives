@@ -7,7 +7,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     lineHeight: 1.6,
   },
-  title: { fontSize: 24, fontWeight: 600, margin: '0 0 16px 0' },
+  title: { fontSize: 24, fontWeight: 600, margin: '12px 0 16px 0' },
   sectionTitle: { fontSize: 18, fontWeight: 600, margin: '32px 0 12px 0' },
   infoBox: {
     padding: 16,
@@ -72,10 +72,12 @@ export const HowTo: React.FC = () => {
             visual editor or Raw HTML
           </li>
           <li style={styles.listItem}>
-            <strong>Save to a product folder</strong> — organize your content by product and subfolder
+            <strong>Save your work</strong> — give it a display name and save. Content is automatically
+            classified under the preset taxonomy (M365 Commercial End User Email) and assigned a unique
+            content ID.
           </li>
           <li style={styles.listItem}>
-            <strong>Localize content</strong> — switch to the Localize tab, load source HTML, download the
+            <strong>Localize content</strong> — switch to the Export tab, load source HTML, download the
             generated .csv or .xlsx, send for translation, and upload the completed file to produce
             locale-specific HTML
           </li>
@@ -88,7 +90,7 @@ export const HowTo: React.FC = () => {
             export the .xml
           </li>
           <li style={styles.listItem}>
-            <strong>Generate the import package</strong> in the Localize tab — upload the .xml and
+            <strong>Generate the import package</strong> in the Export tab — upload the .xml and
             source content to produce a .zip with locale folders
           </li>
           <li style={styles.listItem}>
@@ -107,8 +109,7 @@ export const HowTo: React.FC = () => {
         <ul style={styles.list}>
           <li style={styles.listItem}>Author and edit HTML email content with a visual editor</li>
           <li style={styles.listItem}>
-            Store templates (starting points) and finished content (locale-specific) in browser-based
-            galleries
+            Store email creatives in a browser-based gallery with unique content IDs and preset taxonomy
           </li>
           <li style={styles.listItem}>Generate localization files (.csv/.xlsx) from source HTML</li>
           <li style={styles.listItem}>Build ICMS import packages for localized content variants</li>
@@ -127,7 +128,7 @@ export const HowTo: React.FC = () => {
             <Link href="https://aka.ms/geticmsclient">aka.ms/geticmsclient</Link>).
           </li>
           <li style={styles.listItem}>
-            Store or display localized versions of content — the Localize tab only manages file
+            Store or display localized versions of content — the Export tab only manages file
             creation for the localization process and ICMS imports
           </li>
           <li style={styles.listItem}>
@@ -141,8 +142,9 @@ export const HowTo: React.FC = () => {
 
       <h2 style={styles.sectionTitle}>Gallery</h2>
       <p style={styles.paragraph}>
-        The Gallery is the landing page for Email Creatives. It shows all saved email content organized
-        by product folder with columns for Name, Product, Updated By, Last Updated, and Status.
+        The Gallery is the landing page for Email Creatives (at <InlineCode>/creatives/email</InlineCode>).
+        It shows all saved email content with columns for Name (with content ID), Surface, Updated By,
+        Last Updated, and Status (Draft or Published).
       </p>
 
       <h3 style={styles.subheading}>Starting a New Email</h3>
@@ -152,21 +154,21 @@ export const HowTo: React.FC = () => {
         </li>
         <li style={styles.listItem}>
           Click <strong>Upload HTML</strong> to import an existing HTML file as your starting point.
-          The file opens directly in the editor where you can review, edit, and save it to a product
-          folder.
+          The file opens directly in the editor where you can review, edit, and save it.
         </li>
       </ul>
 
       <h3 style={styles.subheading}>Opening Existing Content</h3>
       <ul style={styles.list}>
         <li style={styles.listItem}>
-          Click any file name in the gallery list to open it in the editor.
+          Click any file name in the gallery list to open it in the editor. The URL updates to
+          include the content ID so it can be bookmarked.
         </li>
         <li style={styles.listItem}>
-          Use the <strong>Filters</strong> button to narrow the list by Product or Status.
+          Use the <strong>Filters</strong> button to narrow the list by Status (Draft or Published).
         </li>
         <li style={styles.listItem}>
-          Click column headers to sort by Name, Product, Updated By, Last Updated, or Status.
+          Click column headers to sort by Name, Surface, Updated By, Last Updated, or Status.
         </li>
       </ul>
 
@@ -215,8 +217,9 @@ export const HowTo: React.FC = () => {
 
       <h3 style={styles.subheading}>Step 5: Save Your Work</h3>
       <p style={styles.paragraph}>
-        Save reusable layouts as templates and save completed source files as content so they appear
-        in the browser-based galleries for later editing.
+        Click the document name (or "Unsaved document") in the indicator bar to name your file and
+        trigger the save dialog. Content is saved locally with a unique content ID and autosaves every
+        60 seconds. A countdown appears 10 seconds before each autosave.
       </p>
 
       <h3 style={styles.subheading}>Step 6: Preview and Download</h3>
@@ -271,10 +274,10 @@ export const HowTo: React.FC = () => {
 
       <hr style={styles.separator} />
 
-      <h2 style={styles.sectionTitle}>Localize Tab</h2>
+      <h2 style={styles.sectionTitle}>Export Tab</h2>
       <h3 style={styles.subheading}>Step 1: Load source content</h3>
       <p style={styles.paragraph}>
-        Upload an HTML file or select a published file from the content gallery. Once loaded, .csv
+        Select a published file from the content gallery or upload an HTML file. Once loaded, .csv
         and .xlsx download links appear in the status bar automatically.
       </p>
 
@@ -293,7 +296,8 @@ export const HowTo: React.FC = () => {
       <h3 style={styles.subheading}>Step 4: Generate localized files and import package</h3>
       <p style={styles.paragraph}>
         Upload the completed translation file to generate locale-specific HTML. Then upload the ICMS
-        .xml export, select the source file, and generate the import package (.zip).
+        .xml export, select the source file, and use the ICMS Import Package Generator to produce the
+        import package (.zip).
       </p>
 
       <h3 style={styles.subheading}>Step 5: Import into ICMS</h3>
@@ -352,6 +356,29 @@ export const HowTo: React.FC = () => {
         <li style={styles.listItem}>Localized HTML file (with translated strings and updated <InlineCode>lang</InlineCode> attribute)</li>
         <li style={styles.listItem}>ICMS import .xml (content.xml per locale folder in the .zip)</li>
       </ul>
+
+      <hr style={styles.separator} />
+
+      <h2 style={styles.sectionTitle}>URL Structure &amp; Bookmarking</h2>
+      <p style={styles.paragraph}>
+        All pages are bookmarkable and directly accessible:
+      </p>
+      <ul style={styles.list}>
+        <li style={styles.listItem}><InlineCode>/creatives/email</InlineCode> — Gallery</li>
+        <li style={styles.listItem}><InlineCode>/creatives/email/create</InlineCode> — New email</li>
+        <li style={styles.listItem}><InlineCode>/creatives/email/create/&lt;contentId&gt;</InlineCode> — Open specific creative by ID</li>
+        <li style={styles.listItem}><InlineCode>/creatives/email/export</InlineCode> — Export / ICMS Import Package Generator</li>
+        <li style={styles.listItem}><InlineCode>/creatives/email/howto</InlineCode> — This guide</li>
+      </ul>
+
+      <hr style={styles.separator} />
+
+      <h2 style={styles.sectionTitle}>Comments</h2>
+      <p style={styles.paragraph}>
+        The comments panel is available on the right side of the editor for draft documents. Click the
+        vertical "Comments" tab to expand it. Comments are tied to the document's content ID and are
+        disabled for published content.
+      </p>
     </div>
   );
 };

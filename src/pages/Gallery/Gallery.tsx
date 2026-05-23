@@ -1,7 +1,7 @@
 import React from 'react';
 import { useHistory } from 'react-router-dom';
-import { ContentGalleryEntry, galleryDbService } from '../../services/galleryDbService';
-import { DocumentAdd20Regular, ArrowUpload20Regular, DismissRegular, FilterRegular } from '@fluentui/react-icons';
+import { ContentGalleryEntry, galleryDbService, CONTENT_TAXONOMY } from '../../services/galleryDbService';
+import { DocumentAdd20Regular, ArrowUpload20Regular, DismissRegular, FilterRegular, DeleteRegular } from '@fluentui/react-icons';
 
 type SortField = 'name' | 'product' | 'updatedBy' | 'lastUpdated' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -152,15 +152,11 @@ const getStatusStyle = (status: string): React.CSSProperties => {
 const getEntryStatus = (entry: ContentGalleryEntry): string =>
   entry.published ? 'Published' : 'Draft';
 
-const getEntryId = (entry: ContentGalleryEntry): string =>
-  `${entry.productName}/${entry.fileName}`;
-
 export const Gallery: React.FC = () => {
   const history = useHistory();
   const [entries, setEntries] = React.useState<ContentGalleryEntry[]>([]);
   const [sortField, setSortField] = React.useState<SortField>('lastUpdated');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
-  const [filterProduct, setFilterProduct] = React.useState<string | null>(null);
   const [filterStatus, setFilterStatus] = React.useState<string | null>(null);
   const [showFilterPanel, setShowFilterPanel] = React.useState(false);
   const filterRef = React.useRef<HTMLDivElement>(null);
@@ -181,21 +177,13 @@ export const Gallery: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const products = React.useMemo(
-    () => Array.from(new Set(entries.map((e) => e.productName))).sort(),
-    [entries]
-  );
-
   const filteredEntries = React.useMemo(() => {
     let result = entries;
-    if (filterProduct) {
-      result = result.filter((e) => e.productName === filterProduct);
-    }
     if (filterStatus) {
       result = result.filter((e) => getEntryStatus(e) === filterStatus);
     }
     return result;
-  }, [entries, filterProduct, filterStatus]);
+  }, [entries, filterStatus]);
 
   const sortedEntries = React.useMemo(() => {
     const sorted = [...filteredEntries];
@@ -203,10 +191,10 @@ export const Gallery: React.FC = () => {
       let cmp = 0;
       switch (sortField) {
         case 'name':
-          cmp = a.fileName.localeCompare(b.fileName);
+          cmp = a.displayName.localeCompare(b.displayName);
           break;
         case 'product':
-          cmp = a.productName.localeCompare(b.productName);
+          cmp = a.surfaceName.localeCompare(b.surfaceName);
           break;
         case 'updatedBy':
           cmp = (a.updatedBy || '').localeCompare(b.updatedBy || '');
@@ -234,11 +222,17 @@ export const Gallery: React.FC = () => {
 
   const handleOpen = (entry: ContentGalleryEntry) => {
     sessionStorage.setItem('emailEditor:openEntry', JSON.stringify(entry));
-    history.push('/editor');
+    history.push(`/creatives/email/create/${entry.contentId}`);
+  };
+
+  const handleDelete = async (entry: ContentGalleryEntry) => {
+    if (!window.confirm(`Delete "${entry.displayName}"? This cannot be undone.`)) return;
+    await galleryDbService.deleteEntry(entry.contentId);
+    setEntries((prev) => prev.filter((e) => e.contentId !== entry.contentId));
   };
 
   const handleNewCreative = () => {
-    history.push('/editor');
+    history.push('/creatives/email/create');
   };
 
   const handleUploadFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,15 +241,17 @@ export const Gallery: React.FC = () => {
     event.target.value = '';
 
     const html = await file.text();
-    // HashRouter doesn't support route state — use sessionStorage to pass data
     sessionStorage.setItem('emailEditor:openEntry', JSON.stringify({
-      productName: '',
-      fileName: file.name,
+      contentId: '',
+      productCategory: CONTENT_TAXONOMY.productCategory,
+      productSubcategory: CONTENT_TAXONOMY.productSubcategory,
+      surfaceName: CONTENT_TAXONOMY.surfaceName,
+      displayName: file.name.replace(/\.html?$/i, ''),
       htmlContent: html,
       sourceType: 'html',
       lastModifiedUtc: new Date().toISOString(),
     }));
-    history.push('/editor');
+    history.push('/creatives/email/create');
   };
 
   const renderSortIndicator = (field: SortField) => {
@@ -263,14 +259,14 @@ export const Gallery: React.FC = () => {
     return <span style={{ marginLeft: 4 }}>{sortDirection === 'asc' ? '↑' : '↓'}</span>;
   };
 
-  const hasFilters = filterProduct || filterStatus;
+  const hasFilters = !!filterStatus;
 
   return (
     <div style={pageStyles.page}>
       <div>
         <h2 style={pageStyles.title}>Email Creatives</h2>
         <p style={pageStyles.subtitle}>
-          Make the messages your campaign audience will receive using content such as images, text, and links.
+          Create email creatives using existing HTML files or from previous creatives.
         </p>
       </div>
 
@@ -312,17 +308,6 @@ export const Gallery: React.FC = () => {
             </button>
             {showFilterPanel && (
               <div style={pageStyles.filterDropdown}>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: '#323130' }}>Product</label>
-                  <select
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #8a8886', fontSize: 13 }}
-                    value={filterProduct || ''}
-                    onChange={(e) => { setFilterProduct(e.target.value || null); setShowFilterPanel(false); }}
-                  >
-                    <option value="">All products</option>
-                    {products.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: '#323130' }}>Status</label>
                   <select
@@ -342,14 +327,6 @@ export const Gallery: React.FC = () => {
           {hasFilters && (
             <>
               <span style={{ fontSize: 13, color: '#605e5c' }}>filtered by</span>
-              {filterProduct && (
-                <span style={pageStyles.chip}>
-                  {filterProduct}
-                  <button type="button" style={pageStyles.chipDismiss} onClick={() => setFilterProduct(null)} aria-label="Remove product filter">
-                    <DismissRegular style={{ fontSize: 12 }} />
-                  </button>
-                </span>
-              )}
               {filterStatus && (
                 <span style={pageStyles.chip}>
                   {filterStatus}
@@ -371,7 +348,7 @@ export const Gallery: React.FC = () => {
                   Name{renderSortIndicator('name')}
                 </th>
                 <th style={pageStyles.th} onClick={() => handleSort('product')}>
-                  Product{renderSortIndicator('product')}
+                  Surface{renderSortIndicator('product')}
                 </th>
                 <th style={pageStyles.th} onClick={() => handleSort('updatedBy')}>
                   Updated By{renderSortIndicator('updatedBy')}
@@ -382,20 +359,31 @@ export const Gallery: React.FC = () => {
                 <th style={pageStyles.th} onClick={() => handleSort('status')}>
                   Status{renderSortIndicator('status')}
                 </th>
+                <th style={{ ...pageStyles.th, width: 40 }}></th>
               </tr>
             </thead>
             <tbody>
               {sortedEntries.map((entry) => (
-                <tr key={getEntryId(entry)} style={{ cursor: 'pointer' }} onClick={() => handleOpen(entry)}>
+                <tr key={entry.contentId} style={{ cursor: 'pointer' }} onClick={() => handleOpen(entry)}>
                   <td style={pageStyles.td}>
-                    <span style={pageStyles.nameLink}>{entry.fileName}</span>
-                    <div style={pageStyles.subText}>{getEntryId(entry)}</div>
+                    <span style={pageStyles.nameLink}>{entry.displayName}</span>
+                    <div style={pageStyles.subText}>ID: {entry.contentId}</div>
                   </td>
-                  <td style={pageStyles.td}>{entry.productName}</td>
+                  <td style={pageStyles.td}>{entry.surfaceName}</td>
                   <td style={pageStyles.td}>{entry.updatedBy || '—'}</td>
                   <td style={pageStyles.td}>{formatDate(entry.lastModifiedUtc)}</td>
                   <td style={pageStyles.td}>
                     <span style={getStatusStyle(getEntryStatus(entry))}>{getEntryStatus(entry)}</span>
+                  </td>
+                  <td style={pageStyles.td}>
+                    <button
+                      type="button"
+                      title="Delete"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(entry); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a4262c', padding: 4, display: 'inline-flex' }}
+                    >
+                      <DeleteRegular />
+                    </button>
                   </td>
                 </tr>
               ))}

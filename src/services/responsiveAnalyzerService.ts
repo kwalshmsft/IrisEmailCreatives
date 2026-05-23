@@ -10,7 +10,22 @@ export interface ResponsiveIssue {
     | 'no-media-queries'
     | 'no-mso-conditionals'
     | 'outlook-no-width-fallback'
-    | 'outlook-flex-grid';
+    | 'outlook-flex-grid'
+    | 'word-bloat-styles'
+    | 'invalid-valign-span'
+    | 'empty-elements'
+    | 'outdated-meta'
+    | 'invalid-width-attr'
+    | 'deprecated-font-tags'
+    | 'office-xml-elements'
+    | 'missing-alt-attribute'
+    | 'script-form-iframe'
+    | 'missing-charset'
+    | 'links-without-protocol'
+    | 'unsupported-css-position'
+    | 'external-stylesheets'
+    | 'relative-local-images'
+    | 'file-size-warning';
   detail: string;
   element: string;
   fix: string;
@@ -163,7 +178,7 @@ export const responsiveAnalyzerService = {
             detail: `Image with fixed width ${width}px and no max-width.`,
             element: `img[${index}]`,
             fix: 'Make the image responsive.',
-            fixDetail: 'Add max-width:100%, width:100%, and height:auto for smaller screens.',
+            fixDetail: 'Add max-width:100% and height:auto so the image shrinks on smaller screens without stretching larger.',
           });
         }
       });
@@ -252,6 +267,253 @@ export const responsiveAnalyzerService = {
       });
     }
 
+    // Word bloat: mso-* styles on elements
+    let msoBloatCount = 0;
+    Array.from(doc.querySelectorAll('*')).forEach((el) => {
+      const style = el.getAttribute('style') || '';
+      if (/mso-[\w-]+\s*:/i.test(style)) {
+        msoBloatCount++;
+      }
+    });
+    if (msoBloatCount > 5) {
+      issues.push({
+        id: nextId(),
+        type: 'word-bloat-styles',
+        detail: `${msoBloatCount} element(s) have Word/Office-specific styles (mso-* properties).`,
+        element: 'multiple',
+        fix: 'Strip Word bloat from inline styles.',
+        fixDetail: 'Removes all mso-* properties and hyphens:none from inline styles, reducing file size significantly.',
+      });
+    }
+
+    // Invalid valign attribute on non-table-cell elements
+    let invalidValignCount = 0;
+    Array.from(doc.querySelectorAll('*[valign]')).forEach((el) => {
+      const tag = el.tagName.toLowerCase();
+      if (tag !== 'td' && tag !== 'th' && tag !== 'tr') {
+        invalidValignCount++;
+      }
+    });
+    if (invalidValignCount > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'invalid-valign-span',
+        detail: `${invalidValignCount} element(s) have invalid valign attribute (only valid on table cells).`,
+        element: 'multiple',
+        fix: 'Remove invalid valign attributes.',
+        fixDetail: 'Removes valign from span, p, a, img, and other non-table elements.',
+      });
+    }
+
+    // Empty elements (p/div with no meaningful content)
+    let emptyCount = 0;
+    Array.from(doc.querySelectorAll('p, div')).forEach((el) => {
+      const text = el.textContent?.trim() || '';
+      const hasChildren = el.children.length > 0;
+      const style = el.getAttribute('style') || '';
+      const hasLayoutStyle = /(?:height|padding|margin|line-height)\s*:\s*[^0;]/i.test(style);
+      if (!text && !hasChildren && !el.id && !el.className && !hasLayoutStyle) {
+        emptyCount++;
+      }
+    });
+    if (emptyCount > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'empty-elements',
+        detail: `${emptyCount} empty element(s) with no content, id, class, or layout styles.`,
+        element: 'multiple',
+        fix: 'Remove empty elements.',
+        fixDetail: 'Removes p/div elements that contain no text, no children, and no meaningful styling.',
+      });
+    }
+
+    // Outdated IE compatibility meta
+    if (doc.querySelector('meta[http-equiv="X-UA-Compatible"]')) {
+      issues.push({
+        id: nextId(),
+        type: 'outdated-meta',
+        detail: 'Outdated <meta http-equiv="X-UA-Compatible"> tag found.',
+        element: 'head',
+        fix: 'Remove outdated meta tag.',
+        fixDetail: 'Removes the IE compatibility mode tag which is no longer needed.',
+      });
+    }
+
+    // Width attributes with "px" suffix (invalid — should be numeric)
+    let invalidWidthCount = 0;
+    Array.from(doc.querySelectorAll('*[width]')).forEach((el) => {
+      const w = el.getAttribute('width') || '';
+      if (/^\d+px$/i.test(w)) {
+        invalidWidthCount++;
+      }
+    });
+    if (invalidWidthCount > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'invalid-width-attr',
+        detail: `${invalidWidthCount} element(s) have width attribute with "px" suffix (should be numeric).`,
+        element: 'multiple',
+        fix: 'Fix width attributes.',
+        fixDetail: 'Strips "px" suffix from width attributes (e.g., width="643px" → width="643").',
+      });
+    }
+
+    // Deprecated <font> tags
+    const fontTags = doc.querySelectorAll('font');
+    if (fontTags.length > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'deprecated-font-tags',
+        detail: `${fontTags.length} deprecated <font> tag(s) found.`,
+        element: 'multiple',
+        fix: 'Convert to <span> with inline styles.',
+        fixDetail: 'Replaces <font face/color/size> with <span style="font-family/color/font-size">.',
+      });
+    }
+
+    // Office XML namespace elements (<o:p>, Word XML wrappers)
+    const officeXmlRegex = /<o:p[^>]*>[\s\S]*?<\/o:p>/gi;
+    const officeMatches = html.match(officeXmlRegex);
+    if (officeMatches && officeMatches.length > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'office-xml-elements',
+        detail: `${officeMatches.length} Office XML element(s) found (<o:p> wrappers).`,
+        element: 'multiple',
+        fix: 'Remove Office XML wrappers.',
+        fixDetail: 'Strips <o:p> tags while preserving their text content. VML elements inside MSO conditionals are preserved.',
+      });
+    }
+
+    // Missing alt attribute on images
+    const imagesNoAlt = Array.from(doc.querySelectorAll('img')).filter((img) => !img.hasAttribute('alt'));
+    if (imagesNoAlt.length > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'missing-alt-attribute',
+        detail: `${imagesNoAlt.length} image(s) missing alt attribute.`,
+        element: 'multiple',
+        fix: 'Add empty alt attributes for accessibility.',
+        fixDetail: 'Adds alt="" to images without an alt attribute. Some email clients show alt text when images are blocked.',
+      });
+    }
+
+    // Script, form, iframe, object, embed elements (always stripped by email clients)
+    const unsafeEls = doc.querySelectorAll('script, iframe, object, embed, form');
+    if (unsafeEls.length > 0) {
+      const tagNames = Array.from(new Set(Array.from(unsafeEls).map((el) => el.tagName.toLowerCase())));
+      issues.push({
+        id: nextId(),
+        type: 'script-form-iframe',
+        detail: `${unsafeEls.length} unsupported element(s) found: ${tagNames.join(', ')}.`,
+        element: 'multiple',
+        fix: 'Remove unsupported elements.',
+        fixDetail: 'Removes script/iframe/object/embed entirely. Form wrappers are unwrapped (children preserved).',
+      });
+    }
+
+    // Missing charset
+    const hasCharset =
+      doc.querySelector('meta[charset]') ||
+      Array.from(doc.querySelectorAll('meta[http-equiv]')).some(
+        (m) => /content-type/i.test(m.getAttribute('http-equiv') || '') && /charset/i.test(m.getAttribute('content') || '')
+      );
+    if (!hasCharset) {
+      issues.push({
+        id: nextId(),
+        type: 'missing-charset',
+        detail: 'No charset declaration found.',
+        element: 'head',
+        fix: 'Add UTF-8 charset meta tag.',
+        fixDetail: 'Adds <meta charset="utf-8"> for proper character encoding across all email clients.',
+      });
+    }
+
+    // Links without protocol (href="www.example.com")
+    let brokenLinkCount = 0;
+    Array.from(doc.querySelectorAll('a[href]')).forEach((a) => {
+      const href = a.getAttribute('href') || '';
+      if (/^www\./i.test(href)) {
+        brokenLinkCount++;
+      }
+    });
+    if (brokenLinkCount > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'links-without-protocol',
+        detail: `${brokenLinkCount} link(s) missing protocol (href starts with "www.").`,
+        element: 'multiple',
+        fix: 'Add https:// protocol.',
+        fixDetail: 'Prepends https:// to href values starting with "www." so links work in all email clients.',
+      });
+    }
+
+    // Unsupported CSS position (absolute/fixed/sticky)
+    let positionCount = 0;
+    Array.from(doc.querySelectorAll('*')).forEach((el) => {
+      const style = el.getAttribute('style') || '';
+      if (/position\s*:\s*(absolute|fixed|sticky)/i.test(style)) {
+        positionCount++;
+      }
+    });
+    if (positionCount > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'unsupported-css-position',
+        detail: `${positionCount} element(s) use position:absolute/fixed/sticky (unsupported in most email clients).`,
+        element: 'multiple',
+        fix: 'Remove unsupported positioning.',
+        fixDetail: 'Strips position, top, right, bottom, left, and z-index from elements using absolute/fixed/sticky positioning.',
+      });
+    }
+
+    // External stylesheets (<link rel="stylesheet">, @import)
+    const externalLinks = doc.querySelectorAll('link[rel="stylesheet"]');
+    const importCount = Array.from(doc.querySelectorAll('style')).filter((s) =>
+      /@import\s/i.test(s.textContent || '')
+    ).length;
+    if (externalLinks.length > 0 || importCount > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'external-stylesheets',
+        detail: `${externalLinks.length + importCount} external stylesheet reference(s) found (link/import).`,
+        element: 'head',
+        fix: 'Remove external stylesheet references.',
+        fixDetail: 'Removes <link rel="stylesheet"> tags and @import rules. Most email clients block external CSS.',
+      });
+    }
+
+    // Relative or local image sources
+    let relativeImageCount = 0;
+    Array.from(doc.querySelectorAll('img[src]')).forEach((img) => {
+      const src = img.getAttribute('src') || '';
+      if (/^(\/[^/]|file:\/\/|blob:|\.\/|\.\.\/)/.test(src)) {
+        relativeImageCount++;
+      }
+    });
+    if (relativeImageCount > 0) {
+      issues.push({
+        id: nextId(),
+        type: 'relative-local-images',
+        detail: `${relativeImageCount} image(s) with relative or local file paths (won't display in email).`,
+        element: 'multiple',
+        fix: 'Flag for manual review.',
+        fixDetail: 'Images with relative paths, file:// or blob: URLs will not display in email. Replace with hosted https:// URLs.',
+      });
+    }
+
+    // File size warning (Gmail clips at ~102KB)
+    if (html.length > 80000) {
+      issues.push({
+        id: nextId(),
+        type: 'file-size-warning',
+        detail: `HTML is ${Math.round(html.length / 1024)}KB. Gmail clips emails larger than ~102KB.`,
+        element: 'html',
+        fix: 'Reduce file size.',
+        fixDetail: 'Consider removing redundant styles, unused code, and Office bloat. Applying other fixes may reduce size sufficiently.',
+      });
+    }
+
     return { issues, hasIssues: issues.length > 0 };
   },
 
@@ -275,19 +537,24 @@ export const responsiveAnalyzerService = {
       Array.from(doc.querySelectorAll('img')).forEach((image) => {
         const styleText = image.getAttribute('style') || '';
         const width = parsePixelWidth(image.getAttribute('width')) ?? parsePixelWidth(styleText.match(/width\s*:\s*([^;]+)/i)?.[1]);
-        if (!width || width <= 100) {
+        if (!width || width <= 200) {
           return;
         }
 
         image.removeAttribute('width');
+        image.removeAttribute('height');
         const declarations = styleText
           .split(';')
           .map((part) => part.trim())
           .filter(Boolean)
           .filter((part) => !/^width\s*:/i.test(part) && !/^max-width\s*:/i.test(part) && !/^height\s*:/i.test(part));
-        declarations.unshift('width: 100%');
-        declarations.unshift('max-width: 100%');
         declarations.unshift('height: auto');
+        declarations.unshift('max-width: 100%');
+        // Large images (>=480px) are hero/banner — make fluid so they fill and shrink with container
+        if (width >= 480) {
+          declarations.unshift('width: 100%');
+          image.classList.add('responsive-image-fluid');
+        }
         image.classList.add('responsive-image');
         image.setAttribute('style', `${Array.from(new Set(declarations)).join('; ')};`);
       });
@@ -313,6 +580,39 @@ export const responsiveAnalyzerService = {
         declarations.unshift(`max-width: ${width}px`);
         declarations.unshift('width: 100%');
         table.setAttribute('style', `${Array.from(new Set(declarations)).join('; ')};`);
+      });
+
+      // Fix ALL td/th cells: remove fixed widths, min-widths, and white-space:nowrap
+      Array.from(doc.querySelectorAll('td, th')).forEach((cell) => {
+        const widthAttr = parsePixelWidth(cell.getAttribute('width'));
+        const styleText = cell.getAttribute('style') || '';
+        const styleWidth = parsePixelWidth(styleText.match(/width\s*:\s*([^;]+)/i)?.[1]);
+        const minWidth = parsePixelWidth(styleText.match(/min-width\s*:\s*([^;]+)/i)?.[1]);
+        const width = widthAttr ?? styleWidth;
+
+        // Remove width attribute
+        if (widthAttr && widthAttr > 100) {
+          cell.removeAttribute('width');
+        }
+
+        // Clean up inline styles that cause overflow
+        if ((width && width > 100) || minWidth || /white-space\s*:\s*nowrap/i.test(styleText)) {
+          const declarations = styleText
+            .split(';')
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .filter((part) =>
+              !/^width\s*:/i.test(part) &&
+              !/^min-width\s*:/i.test(part) &&
+              !/^max-width\s*:/i.test(part) &&
+              !/^white-space\s*:\s*nowrap/i.test(part)
+            );
+          if (width && width > 480) {
+            declarations.unshift(`max-width: ${width}px`);
+            declarations.unshift('width: 100%');
+          }
+          cell.setAttribute('style', `${Array.from(new Set(declarations)).join('; ')};`);
+        }
       });
     }
 
@@ -340,21 +640,33 @@ export const responsiveAnalyzerService = {
         doc,
         'responsive-fix-css',
         [
-          '.responsive-image { max-width: 100% !important; width: 100% !important; height: auto !important; }',
+          '.responsive-image { max-width: 100% !important; height: auto !important; }',
+          '.responsive-image-fluid { width: 100% !important; }',
           'table.responsive-table { width: 100% !important; }',
           '@media only screen and (max-width: 480px) {',
-          '  table.responsive-table,',
-          '  table.responsive-table tbody,',
-          '  table.responsive-table tr,',
-          '  table.responsive-table td {',
+          '  body { overflow-x: hidden !important; }',
+          '  table {',
           '    width: 100% !important;',
           '    max-width: 100% !important;',
+          '    min-width: 0 !important;',
           '    box-sizing: border-box !important;',
           '  }',
-          '  img, img.responsive-image {',
-          '    max-width: 100% !important;',
+          '  td, th {',
           '    width: 100% !important;',
+          '    max-width: 100% !important;',
+          '    min-width: 0 !important;',
+          '    display: block !important;',
+          '    box-sizing: border-box !important;',
+          '    white-space: normal !important;',
+          '  }',
+          '  img {',
+          '    max-width: 100% !important;',
+          '  }',
+          '  img.responsive-image {',
           '    height: auto !important;',
+          '  }',
+          '  img.responsive-image-fluid {',
+          '    width: 100% !important;',
           '  }',
           '}',
         ].join('\n')
@@ -362,6 +674,22 @@ export const responsiveAnalyzerService = {
     }
 
     let serialized = serializeDocument(html, doc);
+
+    // Rewrite fixed pixel widths in <style> blocks to also include max-width:100%
+    // Skip the responsive-fix-css block we just added, and only match "width:" not preceded by "max-"
+    if (shouldApply('fixed-width-table') || shouldApply('fixed-width-cell')) {
+      serialized = serialized.replace(/(<style(?![^>]*id="responsive-fix-css")[^>]*>)([\s\S]*?)(<\/style>)/gi, (match, open, css, close) => {
+        // Only match property declarations inside rule bodies (not @media conditions)
+        // Replace "width: Npx" where N>200 and not preceded by "max-" or inside @media(...)
+        const fixed = css.replace(/(?<!max-)(?<!-)width\s*:\s*(\d+)px/gi, (wMatch: string, px: string) => {
+          if (parseInt(px) > 200) {
+            return `${wMatch}; max-width: 100%`;
+          }
+          return wMatch;
+        });
+        return `${open}${fixed}${close}`;
+      });
+    }
 
     if (shouldApply('no-mso-conditionals') && !/<!--\[if\s+(?:gte\s+)?mso/i.test(serialized)) {
       serialized = serialized.replace(
@@ -387,6 +715,204 @@ export const responsiveAnalyzerService = {
         }
       });
       serialized = serializeDocument(html, fixDoc);
+    }
+
+    // Word bloat cleanup: strip mso-* properties and other Word-only styles from inline styles
+    if (shouldApply('word-bloat-styles')) {
+      const bloatDoc = createDocument(serialized);
+      Array.from(bloatDoc.querySelectorAll('*')).forEach((el) => {
+        const style = el.getAttribute('style');
+        if (!style) return;
+        const cleaned = style
+          .split(';')
+          .map((p) => p.trim())
+          .filter((p) => !/^mso-[\w-]+\s*:/i.test(p) && !/^hyphens\s*:\s*none/i.test(p))
+          .filter(Boolean)
+          .join('; ');
+        if (cleaned) {
+          el.setAttribute('style', cleaned);
+        } else {
+          el.removeAttribute('style');
+        }
+      });
+      serialized = serializeDocument(html, bloatDoc);
+    }
+
+    // Remove invalid valign from non-table elements
+    if (shouldApply('invalid-valign-span')) {
+      const valignDoc = createDocument(serialized);
+      Array.from(valignDoc.querySelectorAll('*[valign]')).forEach((el) => {
+        const tag = el.tagName.toLowerCase();
+        if (tag !== 'td' && tag !== 'th' && tag !== 'tr') {
+          el.removeAttribute('valign');
+        }
+      });
+      serialized = serializeDocument(html, valignDoc);
+    }
+
+    // Remove truly empty elements (no content, no id, no class, no layout styles)
+    if (shouldApply('empty-elements')) {
+      const emptyDoc = createDocument(serialized);
+      Array.from(emptyDoc.querySelectorAll('p, div')).forEach((el) => {
+        const text = el.textContent?.trim() || '';
+        const hasChildren = el.children.length > 0;
+        const style = el.getAttribute('style') || '';
+        const hasLayoutStyle = /(?:height|padding|margin|line-height)\s*:\s*[^0;]/i.test(style);
+        if (!text && !hasChildren && !el.id && !el.className && !hasLayoutStyle) {
+          el.remove();
+        }
+      });
+      serialized = serializeDocument(html, emptyDoc);
+    }
+
+    // Remove outdated IE meta tag
+    if (shouldApply('outdated-meta')) {
+      const metaDoc = createDocument(serialized);
+      const ieMeta = metaDoc.querySelector('meta[http-equiv="X-UA-Compatible"]');
+      if (ieMeta) ieMeta.remove();
+      serialized = serializeDocument(html, metaDoc);
+    }
+
+    // Fix width attributes with "px" suffix
+    if (shouldApply('invalid-width-attr')) {
+      const widthDoc = createDocument(serialized);
+      Array.from(widthDoc.querySelectorAll('*[width]')).forEach((el) => {
+        const w = el.getAttribute('width') || '';
+        if (/^\d+px$/i.test(w)) {
+          el.setAttribute('width', w.replace(/px$/i, ''));
+        }
+      });
+      serialized = serializeDocument(html, widthDoc);
+    }
+
+    // Convert deprecated <font> tags to <span> with inline styles
+    if (shouldApply('deprecated-font-tags')) {
+      const fontSizeMap: Record<string, string> = { '1': '10px', '2': '13px', '3': '16px', '4': '18px', '5': '24px', '6': '32px', '7': '48px' };
+      const fontDoc = createDocument(serialized);
+      Array.from(fontDoc.querySelectorAll('font')).forEach((font) => {
+        const span = fontDoc.createElement('span');
+        const styles: string[] = [];
+        const face = font.getAttribute('face');
+        const color = font.getAttribute('color');
+        const size = font.getAttribute('size');
+        if (face) styles.push(`font-family: ${face}`);
+        if (color) styles.push(`color: ${color}`);
+        if (size) {
+          const mapped = fontSizeMap[size] || fontSizeMap[String(Math.min(7, Math.max(1, parseInt(size) || 3)))];
+          if (mapped) styles.push(`font-size: ${mapped}`);
+        }
+        if (styles.length > 0) span.setAttribute('style', styles.join('; '));
+        // Preserve existing attributes like class/id
+        const existingStyle = font.getAttribute('style');
+        if (existingStyle) {
+          const combined = styles.length > 0 ? `${styles.join('; ')}; ${existingStyle}` : existingStyle;
+          span.setAttribute('style', combined);
+        }
+        while (font.firstChild) span.appendChild(font.firstChild);
+        font.parentNode?.replaceChild(span, font);
+      });
+      serialized = serializeDocument(html, fontDoc);
+    }
+
+    // Remove Office XML elements (<o:p> wrappers) — preserve text content, preserve VML in MSO conditionals
+    if (shouldApply('office-xml-elements')) {
+      // Only strip <o:p> tags (safe) — VML (v:*) is preserved as it may be intentional Outlook fallback
+      serialized = serialized.replace(/<o:p[^>]*>([\s\S]*?)<\/o:p>/gi, '$1');
+      // Also strip empty <o:p /> self-closing
+      serialized = serialized.replace(/<o:p[^>]*\/>/gi, '');
+      // Remove xmlns:o, xmlns:w, xmlns:v namespace declarations from the html tag (bloat)
+      serialized = serialized.replace(/\s+xmlns:(o|w|m|dt)="[^"]*"/gi, '');
+    }
+
+    // Add alt="" to images without alt attribute
+    if (shouldApply('missing-alt-attribute')) {
+      const altDoc = createDocument(serialized);
+      Array.from(altDoc.querySelectorAll('img')).forEach((img) => {
+        if (!img.hasAttribute('alt')) {
+          img.setAttribute('alt', '');
+        }
+      });
+      serialized = serializeDocument(html, altDoc);
+    }
+
+    // Remove script/iframe/object/embed; unwrap form (preserve children)
+    if (shouldApply('script-form-iframe')) {
+      const unsafeDoc = createDocument(serialized);
+      // Remove dangerous elements entirely
+      Array.from(unsafeDoc.querySelectorAll('script, iframe, object, embed')).forEach((el) => el.remove());
+      // Unwrap forms — preserve their visible children
+      Array.from(unsafeDoc.querySelectorAll('form')).forEach((form) => {
+        while (form.firstChild) form.parentNode?.insertBefore(form.firstChild, form);
+        form.remove();
+      });
+      // Remove input/textarea/select (email clients can't render them)
+      Array.from(unsafeDoc.querySelectorAll('input, textarea, select')).forEach((el) => el.remove());
+      serialized = serializeDocument(html, unsafeDoc);
+    }
+
+    // Add charset meta tag
+    if (shouldApply('missing-charset')) {
+      const charsetDoc = createDocument(serialized);
+      const hasExistingCharset =
+        charsetDoc.querySelector('meta[charset]') ||
+        Array.from(charsetDoc.querySelectorAll('meta[http-equiv]')).some(
+          (m) => /content-type/i.test(m.getAttribute('http-equiv') || '') && /charset/i.test(m.getAttribute('content') || '')
+        );
+      if (!hasExistingCharset) {
+        const meta = charsetDoc.createElement('meta');
+        meta.setAttribute('charset', 'utf-8');
+        const head = ensureHead(charsetDoc);
+        head.insertBefore(meta, head.firstChild);
+        serialized = serializeDocument(html, charsetDoc);
+      }
+    }
+
+    // Fix links without protocol
+    if (shouldApply('links-without-protocol')) {
+      const linkDoc = createDocument(serialized);
+      Array.from(linkDoc.querySelectorAll('a[href]')).forEach((a) => {
+        const href = a.getAttribute('href') || '';
+        if (/^www\./i.test(href)) {
+          a.setAttribute('href', `https://${href}`);
+        }
+      });
+      serialized = serializeDocument(html, linkDoc);
+    }
+
+    // Remove unsupported CSS positioning (absolute/fixed/sticky) and related props
+    if (shouldApply('unsupported-css-position')) {
+      const posDoc = createDocument(serialized);
+      Array.from(posDoc.querySelectorAll('*')).forEach((el) => {
+        const style = el.getAttribute('style');
+        if (!style) return;
+        if (!/position\s*:\s*(absolute|fixed|sticky)/i.test(style)) return;
+        const cleaned = style
+          .split(';')
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .filter((p) => !/^(position|top|right|bottom|left|z-index)\s*:/i.test(p))
+          .join('; ');
+        if (cleaned) {
+          el.setAttribute('style', cleaned);
+        } else {
+          el.removeAttribute('style');
+        }
+      });
+      serialized = serializeDocument(html, posDoc);
+    }
+
+    // Remove external stylesheets and @import rules
+    if (shouldApply('external-stylesheets')) {
+      const cssDoc = createDocument(serialized);
+      Array.from(cssDoc.querySelectorAll('link[rel="stylesheet"]')).forEach((el) => el.remove());
+      Array.from(cssDoc.querySelectorAll('style')).forEach((styleEl) => {
+        const text = styleEl.textContent || '';
+        if (/@import\s/i.test(text)) {
+          styleEl.textContent = text.replace(/@import\s+[^;]+;?/gi, '').trim();
+          if (!styleEl.textContent.trim()) styleEl.remove();
+        }
+      });
+      serialized = serializeDocument(html, cssDoc);
     }
 
     return serialized;

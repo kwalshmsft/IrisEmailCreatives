@@ -111,7 +111,21 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span>Alias</span>
-            <input value={alias} onChange={(event) => onAliasChange(event.target.value)} style={inputStyle} />
+            <input
+              value={alias}
+              onChange={(event) => {
+                const val = event.target.value.replace(/\s/g, '');
+                onAliasChange(val);
+              }}
+              style={{
+                ...inputStyle,
+                borderColor: alias && !/^[a-zA-Z0-9_-]*$/.test(alias) ? '#a4262c' : undefined,
+              }}
+              placeholder="e.g. hero-banner_cta"
+            />
+            {alias && !/^[a-zA-Z0-9_-]*$/.test(alias) && (
+              <span style={{ fontSize: 11, color: '#a4262c' }}>Only letters, numbers, hyphens, and underscores allowed.</span>
+            )}
           </label>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <button type="button" style={buttonStyle} onClick={onClose}>

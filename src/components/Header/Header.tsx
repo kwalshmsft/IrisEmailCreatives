@@ -3,27 +3,28 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbButton, BreadcrumbDivider } from 
 import { useLocation, useHistory } from 'react-router-dom';
 import styles from './Header.module.css';
 
-const pageNameMap: Record<string, string> = {
-  '/': 'Gallery',
-  '/gallery': 'Gallery',
-  '/editor': 'Editor',
+const getPageName = (pathname: string): string => {
+  if (pathname.startsWith('/creatives/email/create')) return 'Create';
+  if (pathname.startsWith('/creatives/email/export')) return 'Export';
+  if (pathname.startsWith('/creatives/email/howto')) return 'How To';
+  return 'Gallery';
 };
 
 export const Header: React.FC = () => {
   const location = useLocation();
   const history = useHistory();
-  const currentPage = pageNameMap[location.pathname] || 'Gallery';
+  const currentPage = getPageName(location.pathname);
 
   return (
     <div className={styles.header}>
       <span className={styles.title}>Iris Studio</span>
       <Breadcrumb size="medium">
         <BreadcrumbItem>
-          <BreadcrumbButton onClick={() => history.push('/gallery')} style={{ color: 'white', fontWeight: 400, cursor: 'pointer' }}>Creatives</BreadcrumbButton>
+          <BreadcrumbButton onClick={() => history.push('/creatives/email')} style={{ color: 'white', fontWeight: 400, cursor: 'pointer' }}>Creatives</BreadcrumbButton>
         </BreadcrumbItem>
         <BreadcrumbDivider style={{ color: 'rgba(255,255,255,0.7)' }} />
         <BreadcrumbItem>
-          <BreadcrumbButton onClick={() => history.push('/gallery')} style={{ color: 'white', fontWeight: 400, cursor: 'pointer' }}>Email Creatives</BreadcrumbButton>
+          <BreadcrumbButton onClick={() => history.push('/creatives/email')} style={{ color: 'white', fontWeight: 400, cursor: 'pointer' }}>Email Creatives</BreadcrumbButton>
         </BreadcrumbItem>
         <BreadcrumbDivider style={{ color: 'rgba(255,255,255,0.7)' }} />
         <BreadcrumbItem>

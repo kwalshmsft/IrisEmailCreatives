@@ -3,17 +3,25 @@ import { TabList, Tab, SelectTabEvent, SelectTabData } from '@fluentui/react-com
 import { useHistory, useLocation } from 'react-router-dom';
 
 const tabs = [
-  { key: '/gallery', text: 'Gallery' },
-  { key: '/create', text: 'Create' },
-  { key: '/localize', text: 'Localize' },
-  // { key: '/render', text: 'Render' }, // Hidden until operational
-  { key: '/howto', text: 'How To' },
+  { key: '/creatives/email', text: 'Gallery' },
+  { key: '/creatives/email/create', text: 'Create' },
+  { key: '/creatives/email/export', text: 'Export' },
+  { key: '/creatives/email/howto', text: 'How To' },
 ];
 
 export const TabNav: React.FC = () => {
   const history = useHistory();
   const location = useLocation();
-  const selectedKey = location.pathname === '/' ? '/gallery' : location.pathname;
+
+  const getSelectedKey = () => {
+    const path = location.pathname;
+    if (path.startsWith('/creatives/email/create')) return '/creatives/email/create';
+    if (path.startsWith('/creatives/email/export')) return '/creatives/email/export';
+    if (path.startsWith('/creatives/email/howto')) return '/creatives/email/howto';
+    return '/creatives/email';
+  };
+
+  const selectedKey = getSelectedKey();
 
   const handleTabSelect = (_event: SelectTabEvent, data: SelectTabData) => {
     if (data.value) {

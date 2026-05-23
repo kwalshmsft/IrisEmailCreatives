@@ -1,4 +1,5 @@
 import React from 'react';
+import { ImageAddRegular } from '@fluentui/react-icons';
 
 interface ImageEditorProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface ImageEditorProps {
   onAltChange: (value: string) => void;
   onLinkHrefChange: (value: string) => void;
   onLinkAliasChange: (value: string) => void;
+  onDimensionsChange?: (width: number, height: number) => void;
   onApply: () => void;
   onClose: () => void;
 }
@@ -74,9 +76,42 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
   onAltChange,
   onLinkHrefChange,
   onLinkAliasChange,
+  onDimensionsChange,
   onApply,
   onClose,
 }) => {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setUploading(true);
+
+    // TODO: Replace with actual blob storage upload
+    const objectUrl = URL.createObjectURL(file);
+    // Simulate upload delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Update the image URL
+    onSrcChange(objectUrl);
+
+    // Load image to get dimensions
+    const img = new Image();
+    img.onload = () => {
+      if (onDimensionsChange) {
+        onDimensionsChange(img.naturalWidth, img.naturalHeight);
+      }
+      setUploading(false);
+    };
+    img.onerror = () => {
+      setUploading(false);
+    };
+    img.src = objectUrl;
+  };
+
   if (!isOpen) {
     return null;
   }
@@ -101,16 +136,21 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span>Image URL</span>
             <input value={src} onChange={(event) => onSrcChange(event.target.value)} style={inputStyle} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => void handleFileSelected(e)}
+            />
             <button
               type="button"
-              style={{ ...buttonStyle, alignSelf: 'flex-start', fontSize: 12, padding: '4px 8px', color: '#0078d4', borderColor: '#0078d4' }}
-              onClick={() => {
-                // TODO: Integrate with blob storage upload service
-                const url = window.prompt('Upload Image\n\nThis feature will upload an image to blob storage and return a URL.\n\nFor now, paste an image URL:');
-                if (url) onSrcChange(url);
-              }}
+              style={{ ...buttonStyle, alignSelf: 'flex-start', fontSize: 12, padding: '4px 8px', color: '#0078d4', borderColor: '#0078d4', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
             >
-              Upload Image…
+              <ImageAddRegular style={{ fontSize: 14 }} />
+              {uploading ? 'Uploading…' : 'Upload New Image…'}
             </button>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -138,9 +178,19 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({
             <span>Link alias</span>
             <input
               value={linkAlias}
-              onChange={(event) => onLinkAliasChange(event.target.value)}
-              style={inputStyle}
+              onChange={(event) => {
+                const val = event.target.value.replace(/\s/g, '');
+                onLinkAliasChange(val);
+              }}
+              style={{
+                ...inputStyle,
+                borderColor: linkAlias && !/^[a-zA-Z0-9_-]*$/.test(linkAlias) ? '#a4262c' : undefined,
+              }}
+              placeholder="e.g. hero-banner_cta"
             />
+            {linkAlias && !/^[a-zA-Z0-9_-]*$/.test(linkAlias) && (
+              <span style={{ fontSize: 11, color: '#a4262c' }}>Only letters, numbers, hyphens, and underscores allowed.</span>
+            )}
           </label>
           <div style={{ fontSize: 12, color: '#605e5c', fontStyle: 'italic', marginBottom: 4 }}>
             Tip: Double-click an image to select it for Mobile Only / Desktop Only wrapping.

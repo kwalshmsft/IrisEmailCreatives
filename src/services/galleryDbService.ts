@@ -1,6 +1,23 @@
+export interface LocaleAssetData {
+  locale: string;
+  subject: string;
+  html: string;
+  plainText: string;
+}
+
+// --- Predefined configuration ---
+export const CONTENT_TAXONOMY = {
+  productCategory: 'M365',
+  productSubcategory: 'Email',
+  surfaceName: 'M365 Commercial End User Email',
+};
+
 export interface ContentGalleryEntry {
-  productName: string;
-  fileName: string;
+  contentId: string;
+  productCategory: string;
+  productSubcategory: string;
+  surfaceName: string;
+  displayName: string;
   htmlContent: string;
   sourceType: 'html';
   lastModifiedUtc: string;
@@ -9,22 +26,30 @@ export interface ContentGalleryEntry {
   published?: boolean;
   publishedAtUtc?: string;
   publishedHtml?: string;
+  plainTextContent?: string;
+  plainTextGeneratedAtUtc?: string;
+  localeAssets?: LocaleAssetData[];
 }
 
 const DB_NAME = 'ContentGallery';
 const STORE_NAME = 'entries';
 const RECORD_KEY = 'all_entries';
+const COUNTER_KEY = 'content_id_counter';
+const STARTING_ID = '128000000006000000';
 
 interface GalleryRecord {
   id: string;
   data: ContentGalleryEntry[] | string | null;
 }
 
-const makeEntryKey = (productName: string | undefined, fileName: string | undefined) => `${(productName || '').trim()}/${(fileName || '').trim()}`.toLowerCase();
+interface CounterRecord {
+  id: string;
+  value: string;
+}
 
 const openDatabase = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(DB_NAME, 1);
+    const request = window.indexedDB.open(DB_NAME, 2);
 
     request.onupgradeneeded = () => {
       const database = request.result;
@@ -88,62 +113,101 @@ const writeEntries = async (entries: ContentGalleryEntry[]) => {
   });
 };
 
+const generateContentId = async (): Promise<string> => {
+  const database = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.get(COUNTER_KEY);
+
+    request.onsuccess = () => {
+      const record = request.result as CounterRecord | undefined;
+      const current = record?.value || STARTING_ID;
+      const next = (BigInt(current) + BigInt(1)).toString();
+      store.put({ id: COUNTER_KEY, value: next } satisfies CounterRecord);
+      transaction.oncomplete = () => {
+        database.close();
+        resolve(next);
+      };
+    };
+
+    request.onerror = () => reject(request.error ?? new Error('Failed to generate content ID.'));
+    transaction.onerror = () => reject(transaction.error ?? new Error('Failed to generate content ID.'));
+  });
+};
+
+// Migrate legacy entries (productName/fileName format) to new model
+const migrateIfNeeded = (entries: any[]): ContentGalleryEntry[] => {
+  return entries.map((entry) => {
+    if (entry.contentId) return entry as ContentGalleryEntry;
+    // Legacy entry with productName/fileName
+    const legacyName = entry.fileName || entry.productName || 'Untitled';
+    return {
+      contentId: `legacy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      productCategory: CONTENT_TAXONOMY.productCategory,
+      productSubcategory: CONTENT_TAXONOMY.productSubcategory,
+      surfaceName: CONTENT_TAXONOMY.surfaceName,
+      displayName: legacyName.replace(/\.html?$/i, ''),
+      htmlContent: entry.htmlContent || '',
+      sourceType: 'html' as const,
+      lastModifiedUtc: entry.lastModifiedUtc || new Date().toISOString(),
+      updatedBy: entry.updatedBy,
+      locale: entry.locale,
+      published: entry.published,
+      publishedAtUtc: entry.publishedAtUtc,
+      publishedHtml: entry.publishedHtml,
+      plainTextContent: entry.plainTextContent,
+      plainTextGeneratedAtUtc: entry.plainTextGeneratedAtUtc,
+      localeAssets: entry.localeAssets,
+    } as ContentGalleryEntry;
+  });
+};
+
 export const galleryDbService = {
   async getAllEntries(): Promise<ContentGalleryEntry[]> {
-    const entries = await readEntries();
-    const valid = entries.filter((e) => (e.productName || '').trim() && (e.fileName || '').trim());
-    // Auto-clean orphans with empty names
-    if (valid.length < entries.length) {
+    const raw = await readEntries();
+    const entries = migrateIfNeeded(raw);
+    const valid = entries.filter((e) => e.contentId);
+    // Persist migration if any entries changed
+    if (raw.length > 0 && JSON.stringify(raw) !== JSON.stringify(valid)) {
       await writeEntries(valid);
     }
     return valid;
   },
 
-  async listProducts(): Promise<string[]> {
-    const entries = await readEntries();
-    return Array.from(new Set(entries.map((entry) => entry.productName.trim()).filter(Boolean))).sort((left, right) =>
-      left.localeCompare(right)
-    );
+  async generateContentId(): Promise<string> {
+    return generateContentId();
   },
 
   async saveEntry(entry: ContentGalleryEntry): Promise<void> {
-    if (!entry.productName.trim() || !entry.fileName.trim()) {
-      throw new Error('Product name and file name are required.');
+    if (!entry.contentId) {
+      throw new Error('Content ID is required.');
     }
 
     const normalizedEntry: ContentGalleryEntry = {
       ...entry,
-      productName: entry.productName.trim(),
-      fileName: entry.fileName.trim(),
-      htmlContent: entry.htmlContent,
       lastModifiedUtc: entry.lastModifiedUtc || new Date().toISOString(),
     };
 
     const entries = await readEntries();
-    // Remove any orphaned entries with empty names, plus the entry being replaced
-    const filtered = entries.filter(
-      (candidate) =>
-        candidate.productName.trim() &&
-        candidate.fileName.trim() &&
-        makeEntryKey(candidate.productName, candidate.fileName) !== makeEntryKey(normalizedEntry.productName, normalizedEntry.fileName)
-    );
+    const migrated = migrateIfNeeded(entries);
+    const filtered = migrated.filter((candidate) => candidate.contentId !== normalizedEntry.contentId);
 
     filtered.push(normalizedEntry);
     await writeEntries(filtered);
   },
 
-  async getEntry(productName: string, fileName: string): Promise<ContentGalleryEntry | null> {
+  async getEntry(contentId: string): Promise<ContentGalleryEntry | null> {
     const entries = await readEntries();
-    return entries.find(
-      (entry) => makeEntryKey(entry.productName, entry.fileName) === makeEntryKey(productName, fileName)
-    ) || null;
+    const migrated = migrateIfNeeded(entries);
+    return migrated.find((entry) => entry.contentId === contentId) || null;
   },
 
-  async deleteEntry(productName: string, fileName: string): Promise<void> {
+  async deleteEntry(contentId: string): Promise<void> {
     const entries = await readEntries();
-    const filtered = entries.filter(
-      (entry) => makeEntryKey(entry.productName, entry.fileName) !== makeEntryKey(productName, fileName)
-    );
+    const migrated = migrateIfNeeded(entries);
+    const filtered = migrated.filter((entry) => entry.contentId !== contentId);
     await writeEntries(filtered);
   },
 };

@@ -11,7 +11,7 @@ const PageChangeNotifier: React.FC = () => {
 
   React.useEffect(() => {
     if (isEmbedded) {
-      const page = location.pathname === '/' ? '/gallery' : location.pathname;
+      const page = location.pathname === '/' ? '/creatives/email' : location.pathname;
       window.parent.postMessage({ type: 'emailEditor:pageChanged', page }, '*');
     }
   }, [location.pathname]);
@@ -25,10 +25,15 @@ const AppShell: React.FC = () => {
       <PageChangeNotifier />
       <div className="page-content">
         <Switch>
-          <Route exact path="/" component={Gallery} />
-          <Route path="/gallery" component={Gallery} />
-          <Route path="/editor" component={Editor} />
-          <Redirect to="/" />
+          <Route path="/creatives/email/export" component={Editor} />
+          <Route path="/creatives/email/howto" component={Editor} />
+          <Route path="/creatives/email/create/:contentId" component={Editor} />
+          <Route exact path="/creatives/email/create" component={Editor} />
+          <Route exact path="/creatives/email" component={Gallery} />
+          {/* Legacy route redirects */}
+          <Route path="/gallery"><Redirect to="/creatives/email" /></Route>
+          <Route path="/editor"><Redirect to="/creatives/email/create" /></Route>
+          <Redirect to="/creatives/email" />
         </Switch>
       </div>
     </>
