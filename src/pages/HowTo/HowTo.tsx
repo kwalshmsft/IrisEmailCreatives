@@ -56,8 +56,8 @@ export const HowTo: React.FC = () => {
     <div style={styles.page}>
       <h1 style={styles.title}>Email Content Editor: Step-by-Step Guide</h1>
       <p style={styles.paragraph}>
-        This tool helps you create, edit, and prepare email content for Iris campaigns. The gallery
-        is your starting point for all email creative work.
+        This tool helps you create, edit, check responsiveness, localize, and prepare email content
+        for Iris campaigns. The gallery is your starting point for all email creative work.
       </p>
 
       <div style={styles.infoBox}>
@@ -69,7 +69,11 @@ export const HowTo: React.FC = () => {
           </li>
           <li style={styles.listItem}>
             <strong>Edit content</strong> in the editor — author HTML email content using the
-            visual editor or Raw HTML
+            visual editor, Raw HTML, or Plain Text tabs
+          </li>
+          <li style={styles.listItem}>
+            <strong>Check Responsiveness</strong> — run the built-in analyzer to detect and fix issues
+            for mobile, Outlook, and cross-platform compatibility
           </li>
           <li style={styles.listItem}>
             <strong>Save your work</strong> — give it a display name and save. Content is automatically
@@ -77,9 +81,9 @@ export const HowTo: React.FC = () => {
             content ID.
           </li>
           <li style={styles.listItem}>
-            <strong>Localize content</strong> — switch to the Export tab, load source HTML, download the
-            generated .csv or .xlsx, send for translation, and upload the completed file to produce
-            locale-specific HTML
+            <strong>Localize content</strong> — in the Locale Specific Assets section, select target
+            locales, download the .csv, send for translation, and upload the completed file. Translated
+            content is saved automatically and can be toggled in the editor.
           </li>
           <li style={styles.listItem}>
             <strong>Create the content object in ICMS</strong> using the{' '}
@@ -97,10 +101,6 @@ export const HowTo: React.FC = () => {
             <strong>Import into ICMS</strong> — use "Import from Localization" to bring in all
             locale variants
           </li>
-          {/* <li style={styles.listItem}>
-            <strong>Render and verify</strong> in the Render tab — view published content from ICMS,
-            toggle locales, and test Model values
-          </li> */}
         </ol>
       </div>
 
@@ -109,13 +109,16 @@ export const HowTo: React.FC = () => {
         <ul style={styles.list}>
           <li style={styles.listItem}>Author and edit HTML email content with a visual editor</li>
           <li style={styles.listItem}>
+            Analyze and fix email HTML for responsiveness and cross-platform compatibility
+          </li>
+          <li style={styles.listItem}>
             Store email creatives in a browser-based gallery with unique content IDs and preset taxonomy
           </li>
-          <li style={styles.listItem}>Generate localization files (.csv/.xlsx) from source HTML</li>
+          <li style={styles.listItem}>
+            Manage localized versions inline — download .csv for translation, upload translations,
+            and switch between locales in the main editor
+          </li>
           <li style={styles.listItem}>Build ICMS import packages for localized content variants</li>
-          {/* <li style={styles.listItem}>
-            Preview published ICMS content with locale switching and Model value rendering
-          </li> */}
         </ul>
       </div>
 
@@ -126,10 +129,6 @@ export const HowTo: React.FC = () => {
             <strong>Publish content</strong> — this tool does not publish content to ICMS or Iris.
             Publishing is a manual process that takes place in the ICMS desktop client (download at{' '}
             <Link href="https://aka.ms/geticmsclient">aka.ms/geticmsclient</Link>).
-          </li>
-          <li style={styles.listItem}>
-            Store or display localized versions of content — the Export tab only manages file
-            creation for the localization process and ICMS imports
           </li>
           <li style={styles.listItem}>
             Send production emails — it produces the HTML content that gets uploaded to ICMS via the
@@ -176,56 +175,88 @@ export const HowTo: React.FC = () => {
 
       <h2 style={styles.sectionTitle}>Create Tab</h2>
       <p style={styles.paragraph}>
-        The Create tab is where you author one language version of email content. The locale is set
+        The Create tab is where you author email content. The source locale is set
         via the <InlineCode>&lt;html lang="..."&gt;</InlineCode> attribute.
       </p>
 
-      <h3 style={styles.subheading}>Step 1: Choose a Starting Point</h3>
-      <ul style={styles.list}>
-        <li style={styles.listItem}>Start from a blank email (via + New Email in the Gallery) when building a new message from scratch.</li>
-        <li style={styles.listItem}>Upload an HTML file (via Upload HTML in the Gallery) to import existing content for editing.</li>
-        <li style={styles.listItem}>Click an existing file in the Gallery to revise saved content.</li>
-      </ul>
-
-      <h3 style={styles.subheading}>Step 2: Edit Your Content</h3>
+      <h3 style={styles.subheading}>Editing</h3>
       <ul style={styles.list}>
         <li style={styles.listItem}>
-          <strong>Visual Editor</strong> — build the layout using content blocks and edit text,
-          spacing, buttons, and images visually.
+          <strong>Visual Editor</strong> — edit text, spacing, buttons, and images visually using
+          a rich text editor.
         </li>
         <li style={styles.listItem}>
-          <strong>Raw HTML</strong> — edit the generated HTML directly when you need precise markup
-          control.
+          <strong>Raw HTML</strong> — edit the HTML directly when you need precise markup control.
+        </li>
+        <li style={styles.listItem}>
+          <strong>Plain Text</strong> — auto-generated from the HTML. You can edit it manually
+          or regenerate it from the current HTML at any time.
         </li>
       </ul>
+
+      <h3 style={styles.subheading}>Subject Line</h3>
       <p style={styles.paragraph}>
-        <strong>Note:</strong> For advanced elements, custom attributes, or Razor expressions, switch
-        to Raw HTML so you can edit the underlying markup directly.
+        The subject line field sits above the editor tabs. It is saved alongside the HTML and plain
+        text as part of the content object.
       </p>
 
-      <h3 style={styles.subheading}>Step 3: Work with Links and Images</h3>
+      <h3 style={styles.subheading}>Check Responsiveness</h3>
       <p style={styles.paragraph}>
-        Add links with full destination URLs and use hosted image URLs so the final email can render
-        correctly when it is uploaded to ICMS.
+        Click <strong>Check Responsiveness</strong> to analyze the current HTML for email compatibility
+        issues. The analyzer detects and can auto-fix:
+      </p>
+      <ul style={styles.list}>
+        <li style={styles.listItem}>Fixed-width tables, cells, images, and containers</li>
+        <li style={styles.listItem}>Missing viewport meta tag and media queries</li>
+        <li style={styles.listItem}>Outlook-specific issues (MSO conditionals, flex/grid, max-width fallbacks)</li>
+        <li style={styles.listItem}>Word/Office export bloat (mso-* styles, Office XML, invalid attributes)</li>
+        <li style={styles.listItem}>Deprecated elements ({'<font>'} tags, empty elements, outdated meta)</li>
+        <li style={styles.listItem}>Missing charset, alt attributes, broken links</li>
+        <li style={styles.listItem}>Unsupported CSS (position:absolute/fixed, external stylesheets)</li>
+        <li style={styles.listItem}>File size warnings (Gmail clips at ~102KB)</li>
+      </ul>
+      <p style={styles.paragraph}>
+        Review individual issues, accept all or selectively, then apply. Use <strong>Revert Fixes</strong> if
+        the changes break anything.
       </p>
 
-      <h3 style={styles.subheading}>Step 4: Set Mobile/Desktop Visibility</h3>
+      <h3 style={styles.subheading}>Preview</h3>
       <p style={styles.paragraph}>
-        Use the editor controls to show or hide content by device size when you need separate mobile
-        and desktop experiences.
+        The preview section shows a live render of the email. Switch between Desktop, Tablet, and
+        Mobile viewports, and simulate how the email appears in Standard, Outlook Desktop, Gmail,
+        and iOS Mail clients.
       </p>
 
-      <h3 style={styles.subheading}>Step 5: Save Your Work</h3>
+      <h3 style={styles.subheading}>Locale Specific Assets</h3>
+      <p style={styles.paragraph}>
+        Expand the Locale Specific Assets section to manage translations:
+      </p>
+      <ol style={styles.list}>
+        <li style={styles.listItem}>
+          <strong>Select locales</strong> — click "Select Locales" and check the target languages.
+          Selected locales persist across sessions.
+        </li>
+        <li style={styles.listItem}>
+          <strong>Download .csv</strong> — generates a CSV file with the source content (subject, HTML
+          strings) and columns for each target locale. The file is RFC 4180 compliant and named after
+          the document.
+        </li>
+        <li style={styles.listItem}>
+          <strong>Upload translated .csv</strong> — import the completed translation file. Translated
+          content is saved immediately to the document.
+        </li>
+        <li style={styles.listItem}>
+          <strong>Switch locales in the editor</strong> — once translations are imported, locale buttons
+          appear above the subject line. Click any locale to load its content into the editor for review
+          or editing. Changes to localized versions are saved alongside the source.
+        </li>
+      </ol>
+
+      <h3 style={styles.subheading}>Saving</h3>
       <p style={styles.paragraph}>
         Click the document name (or "Unsaved document") in the indicator bar to name your file and
         trigger the save dialog. Content is saved locally with a unique content ID and autosaves every
         60 seconds. A countdown appears 10 seconds before each autosave.
-      </p>
-
-      <h3 style={styles.subheading}>Step 6: Preview and Download</h3>
-      <p style={styles.paragraph}>
-        Preview the current email before exporting, then download the HTML file that will be used as
-        the source for localization and ICMS import packaging.
       </p>
 
       <hr style={styles.separator} />
@@ -234,10 +265,10 @@ export const HowTo: React.FC = () => {
       <p style={styles.paragraph}>Available Variables:</p>
       <ul style={styles.list}>
         <li style={styles.listItem}>
-          <InlineCode>@@Culture.Name</InlineCode>
+          <InlineCode>@Culture.Name</InlineCode>
         </li>
         <li style={styles.listItem}>
-          <InlineCode>@@Model.&lt;PropertyName&gt;</InlineCode>
+          <InlineCode>@Model.&lt;PropertyName&gt;</InlineCode>
         </li>
         <li style={styles.listItem}>
           <InlineCode>##UnsubscribeLinkPlaceholder##</InlineCode>
@@ -245,13 +276,13 @@ export const HowTo: React.FC = () => {
       </ul>
 
       <p style={styles.paragraph}>Conditional Logic with code example:</p>
-      <pre style={styles.codeBlock}>{`@@if (Model.SubscriptionType == "Premium") {
+      <pre style={styles.codeBlock}>{`@if (Model.SubscriptionType == "Premium") {
     <p>Exclusive offer for premium members!</p>
 } else {
     <p>Upgrade to Premium for exclusive offers!</p>
 }
 
-@@if (Culture.Name == "en-US") {
+@if (Culture.Name == "en-US") {
     <p>English content here</p>
 } else if (Culture.Name == "fr-FR") {
     <p>French content here</p>
@@ -269,38 +300,36 @@ export const HowTo: React.FC = () => {
       <p style={{ ...styles.paragraph, ...styles.mutedText }}>
         <strong>Note about @ escaping in ICMS import:</strong> Use double at-signs such as{' '}
         <InlineCode>@@Culture.Name</InlineCode> and <InlineCode>@@Model.&lt;PropertyName&gt;</InlineCode>{' '}
-        in your source files so the content survives the ICMS import pipeline correctly.
+        in the source HTML files you upload to ICMS so the content survives the import pipeline correctly.
+        In the Razor examples above, single @ is the correct runtime syntax.
       </p>
 
       <hr style={styles.separator} />
 
       <h2 style={styles.sectionTitle}>Export Tab</h2>
+      <p style={styles.paragraph}>
+        The Export tab handles ICMS import package generation — the final step before importing
+        localized content into ICMS.
+      </p>
+
       <h3 style={styles.subheading}>Step 1: Load source content</h3>
       <p style={styles.paragraph}>
-        Select a published file from the content gallery or upload an HTML file. Once loaded, .csv
-        and .xlsx download links appear in the status bar automatically.
+        Select a published file from the content gallery or upload an HTML file.
       </p>
 
-      <h3 style={styles.subheading}>Step 2: Translate outside Iris</h3>
-      <p style={styles.paragraph}>
-        Download the .csv or .xlsx, send it to your translation workflow, and fill in the Translation
-        column. The target locale is identified by row (.csv) or sheet name (.xlsx).
-      </p>
-
-      <h3 style={styles.subheading}>Step 3: Upload the ICMS export</h3>
+      <h3 style={styles.subheading}>Step 2: Upload the ICMS export .xml</h3>
       <p style={styles.paragraph}>
         In ICMS, create the content object under InvariantCulture, then right-click it and export the
         .xml that will be used for localization packaging.
       </p>
 
-      <h3 style={styles.subheading}>Step 4: Generate localized files and import package</h3>
+      <h3 style={styles.subheading}>Step 3: Generate the import package</h3>
       <p style={styles.paragraph}>
-        Upload the completed translation file to generate locale-specific HTML. Then upload the ICMS
-        .xml export, select the source file, and use the ICMS Import Package Generator to produce the
-        import package (.zip).
+        Upload the ICMS .xml export and select the source file to produce a .zip with locale folders
+        ready for ICMS import.
       </p>
 
-      <h3 style={styles.subheading}>Step 5: Import into ICMS</h3>
+      <h3 style={styles.subheading}>Step 4: Import into ICMS</h3>
       <p style={styles.paragraph}>
         Use the generated .zip with ICMS "Import from Localization" to create all localized variants
         of the content object.
@@ -318,42 +347,12 @@ export const HowTo: React.FC = () => {
    ├─ content.xml
    └─ Newsletter_ja-JP.html`}</pre>
 
-      {/* Render Tab section hidden until operational
-      <hr style={styles.separator} />
-
-      <h2 style={styles.sectionTitle}>Render Tab</h2>
-      <h3 style={styles.subheading}>Step 1: Open published content</h3>
-      <p style={styles.paragraph}>
-        Load a published ICMS content item into the Render tab to preview the output that Iris will
-        use.
-      </p>
-
-      <h3 style={styles.subheading}>Step 2: Toggle locales</h3>
-      <p style={styles.paragraph}>
-        Switch between locales to confirm each published variant renders the expected content.
-      </p>
-
-      <h3 style={styles.subheading}>Step 3: Test Model values</h3>
-      <p style={styles.paragraph}>
-        Provide sample Model values to validate conditional content and placeholder-driven rendering.
-      </p>
-
-      <h3 style={styles.subheading}>Step 4: Verify final output</h3>
-      <p style={styles.paragraph}>
-        Review the rendered subject, plain text, and HTML output before sign-off.
-      </p>
-
-      <p style={{ ...styles.paragraph, ...styles.mutedText }}>
-        <strong>Direct linking note:</strong> The Render tab can be linked directly so reviewers can
-        open a specific content item and locale for verification.
-      </p>
-      */}
-
       <hr style={styles.separator} />
 
       <h2 style={styles.sectionTitle}>What the Tool Generates for Each Locale</h2>
       <ul style={styles.list}>
         <li style={styles.listItem}>Localized HTML file (with translated strings and updated <InlineCode>lang</InlineCode> attribute)</li>
+        <li style={styles.listItem}>Localized subject line and plain text</li>
         <li style={styles.listItem}>ICMS import .xml (content.xml per locale folder in the .zip)</li>
       </ul>
 

@@ -85,6 +85,10 @@ export function transformForPublish(html: string): string {
     return `<${tag}${attrs} @direction>`;
   });
 
+  // Escape CSS at-rules (@media, @font-face, @import, @keyframes) to @@ so ICMS
+  // Razor engine doesn't interpret them as code expressions.
+  output = output.replace(/@(media|font-face|import|keyframes|supports|charset)\b/g, '@@$1');
+
   return output;
 }
 

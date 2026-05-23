@@ -34,6 +34,8 @@ function htmlToPlainText(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   // Remove script, style, head
   doc.querySelectorAll('script, style, head').forEach((el) => el.remove());
+  // Remove images (they add whitespace artifacts in plain text)
+  doc.querySelectorAll('img').forEach((el) => el.remove());
   // Convert <br> and block elements to newlines
   doc.querySelectorAll('br').forEach((el) => el.replaceWith('\n'));
   const blockTags = ['p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table'];
@@ -42,12 +44,19 @@ function htmlToPlainText(html: string): string {
       el.insertAdjacentText('afterend', '\n');
     });
   });
-  // Extract links as "text (url)"
+  // Extract links: URL on its own line
   doc.querySelectorAll('a[href]').forEach((el) => {
     const href = el.getAttribute('href') || '';
-    const text = el.textContent || '';
-    if (href && !href.startsWith('#') && href !== text) {
-      el.replaceWith(`${text} (${href})`);
+    const text = (el.textContent || '').trim();
+    // Skip anchor-only links (#section) but allow ##placeholder## tokens
+    if (href && !(href.startsWith('#') && !href.startsWith('##'))) {
+      if (text && text !== href) {
+        el.replaceWith(`${text}\n${href}\n`);
+      } else if (text) {
+        el.replaceWith(text);
+      } else {
+        el.replaceWith(`${href}\n`);
+      }
     }
   });
   // Get text, decode entities, normalize whitespace
@@ -56,6 +65,8 @@ function htmlToPlainText(html: string): string {
   text = text.replace(/[ \t]+/g, ' ');
   text = text.replace(/ ?\n ?/g, '\n');
   text = text.replace(/\n{3,}/g, '\n\n');
+  // Remove lines that are just stray punctuation (e.g., lone "," or ":")
+  text = text.replace(/\n[,:;.]\s*\n/g, '\n');
   return text.trim();
 }
 
