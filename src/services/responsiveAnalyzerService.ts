@@ -547,7 +547,8 @@ export const responsiveAnalyzerService = {
           .split(';')
           .map((part) => part.trim())
           .filter(Boolean)
-          .filter((part) => !/^width\s*:/i.test(part) && !/^max-width\s*:/i.test(part) && !/^height\s*:/i.test(part));
+          .filter((part) => !/^width\s*:/i.test(part) && !/^max-width\s*:/i.test(part) && !/^height\s*:/i.test(part) && !/^display\s*:/i.test(part));
+        declarations.unshift('display: block');
         declarations.unshift('height: auto');
         declarations.unshift('max-width: 100%');
         // Large images (>=480px) are hero/banner — make fluid so they fill and shrink with container
@@ -583,6 +584,7 @@ export const responsiveAnalyzerService = {
       });
 
       // Fix ALL td/th cells: remove fixed widths, min-widths, and white-space:nowrap
+      // Add stacking class only to cells in multi-column rows (not spacers/single-cell rows)
       Array.from(doc.querySelectorAll('td, th')).forEach((cell) => {
         const widthAttr = parsePixelWidth(cell.getAttribute('width'));
         const styleText = cell.getAttribute('style') || '';
@@ -593,6 +595,13 @@ export const responsiveAnalyzerService = {
         // Remove width attribute
         if (widthAttr && widthAttr > 100) {
           cell.removeAttribute('width');
+        }
+
+        // Determine if this cell should stack on mobile (multi-column row with significant width)
+        const row = cell.parentElement;
+        const siblingCells = row ? Array.from(row.children).filter((c) => c.tagName === 'TD' || c.tagName === 'TH') : [];
+        if (siblingCells.length > 1 && (width === null || width > 50)) {
+          cell.classList.add('responsive-stack');
         }
 
         // Clean up inline styles that cause overflow
@@ -644,24 +653,19 @@ export const responsiveAnalyzerService = {
         doc,
         'responsive-fix-css',
         [
-          '.responsive-image { max-width: 100% !important; height: auto !important; }',
+          '.responsive-image { max-width: 100% !important; height: auto !important; display: block; }',
           '.responsive-image-fluid { width: 100% !important; }',
           'table.responsive-table { width: 100% !important; }',
           '@media only screen and (max-width: 480px) {',
-          '  body { overflow-x: hidden !important; }',
-          '  table {',
+          '  table.responsive-table {',
           '    width: 100% !important;',
           '    max-width: 100% !important;',
-          '    min-width: 0 !important;',
-          '    box-sizing: border-box !important;',
           '  }',
-          '  td, th {',
+          '  .responsive-stack {',
+          '    display: block !important;',
           '    width: 100% !important;',
           '    max-width: 100% !important;',
-          '    min-width: 0 !important;',
-          '    display: block !important;',
-          '    box-sizing: border-box !important;',
-          '    white-space: normal !important;',
+          '    direction: ltr !important;',
           '  }',
           '  img {',
           '    max-width: 100% !important;',
