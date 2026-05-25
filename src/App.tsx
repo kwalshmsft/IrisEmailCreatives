@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter, Switch, Route, Redirect, useLocation } from 'react-router-dom';
 import { Gallery } from './pages/Gallery/Gallery';
 import { Editor } from './pages/Editor/Editor';
+import { IrisShell } from './components/IrisShell/IrisShell';
 import './App.css';
 
 const isEmbedded = window.self !== window.top;
@@ -20,7 +21,7 @@ const PageChangeNotifier: React.FC = () => {
 };
 
 const AppShell: React.FC = () => {
-  return (
+  const content = (
     <>
       <PageChangeNotifier />
       <div className="page-content">
@@ -38,6 +39,9 @@ const AppShell: React.FC = () => {
       </div>
     </>
   );
+
+  if (isEmbedded) return content;
+  return <IrisShell>{content}</IrisShell>;
 };
 
 const App: React.FC = () => {
