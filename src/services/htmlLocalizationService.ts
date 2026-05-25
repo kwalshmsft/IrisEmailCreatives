@@ -68,8 +68,6 @@ const hasBlockChildren = (element: Element) =>
 
 const parseDocument = (content: string) => new DOMParser().parseFromString(content, 'text/html');
 
-const createKey = (context: string, index: number) => (index === 1 && context === 'subject') ? 'subject' : `${context}_${index}`;
-
 const buildPath = (node: Node): string => {
   const parts: string[] = [];
   let current: Node | null = node;

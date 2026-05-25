@@ -1799,7 +1799,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
             </button>
           ) : null}
           {savedLocation && !isPublished ? (
-            <button type="button" style={pageStyles.button} onClick={openSaveDialog}>
+            <button type="button" style={pageStyles.button} onClick={openSaveAsDialog}>
               Save As...
             </button>
           ) : null}

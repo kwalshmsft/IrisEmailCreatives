@@ -227,10 +227,6 @@ export const Gallery: React.FC = () => {
     history.push(`/creatives/email/create/${entry.contentId}`);
   };
 
-  const handleDelete = (entry: ContentGalleryEntry) => {
-    setDeleteTarget(entry);
-  };
-
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     await galleryDbService.deleteEntry(deleteTarget.contentId);
@@ -276,7 +272,7 @@ export const Gallery: React.FC = () => {
     } else if (selectedIds.size > 1) {
       // Delete all selected
       void (async () => {
-        for (const id of selectedIds) {
+        for (const id of Array.from(selectedIds)) {
           await galleryDbService.deleteEntry(id);
         }
         setEntries((prev) => prev.filter((e) => !selectedIds.has(e.contentId)));

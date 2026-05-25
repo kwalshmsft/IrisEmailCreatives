@@ -35,11 +35,6 @@ const OUTLOOK_UNSUPPORTED_PROPERTIES = new Set([
   'background-repeat',
 ]);
 
-// Display values not supported
-const OUTLOOK_UNSUPPORTED_DISPLAY = new Set([
-  'flex', 'inline-flex', 'grid', 'inline-grid',
-]);
-
 function simulateOutlookDesktop(html: string): string {
   let result = html;
 

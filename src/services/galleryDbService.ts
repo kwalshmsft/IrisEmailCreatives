@@ -227,7 +227,7 @@ export const galleryDbService = {
   },
 
   async deleteEntry(contentId: string): Promise<void> {
-    const apiResult = await apiFetch<null>(`/entries/${contentId}`, { method: 'DELETE' });
+    await apiFetch<null>(`/entries/${contentId}`, { method: 'DELETE' });
     // Always clean IndexedDB to avoid stale entries showing up
     const entries = await readEntries();
     const migrated = migrateIfNeeded(entries);

@@ -2,7 +2,6 @@ import React from 'react';
 import { Dialog, DialogSurface, DialogTitle, DialogBody, DialogContent, DialogActions, Button, Input } from '@fluentui/react-components';
 import { GlobeRegular, ArrowDownloadRegular, ArrowUploadRegular, DismissRegular, SearchRegular, ChevronRightRegular, ChevronDownRegular } from '@fluentui/react-icons';
 import { htmlLocalizationService } from '../../services/htmlLocalizationService';
-import { LocalizableString } from '../../models/localization';
 import { parseCsvText } from '../../utils/fileUtils';
 
 /** Locale groups by priority */
@@ -401,7 +400,7 @@ export const LocaleAssets: React.FC<LocaleAssetsProps> = ({ htmlContent, sourceL
       const newLocales = newLocaleData.map((d) => d.locale);
       setSelectedLocales((prev) => {
         const combined = new Set([...prev, ...newLocales]);
-        return [...combined].sort();
+        return Array.from(combined).sort();
       });
 
       // Compute merged data synchronously so we can pass it to parent immediately

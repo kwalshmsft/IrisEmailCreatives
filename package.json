@@ -28,11 +28,12 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "server": "node server/api.js",
+    "start": "cross-env NODE_OPTIONS=--no-deprecation react-scripts start",
+    "server": "cross-env NODE_OPTIONS=--no-deprecation node server/api.js",
     "dev": "concurrently \"npm run server\" \"npm start\"",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "tunnel": "npm run build && concurrently \"npm run server\" \"devtunnel host --port-numbers 3002 --allow-anonymous\"",
+    "build": "cross-env NODE_OPTIONS=--no-deprecation react-scripts build",
+    "test": "cross-env NODE_OPTIONS=--no-deprecation react-scripts test",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -52,5 +53,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }

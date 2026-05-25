@@ -88,11 +88,6 @@ const activeButtonStyle: React.CSSProperties = {
   backgroundColor: '#fff4ce',
 };
 
-const selectStyle: React.CSSProperties = {
-  ...buttonStyle,
-  padding: '6px 8px',
-};
-
 const menuStyle: React.CSSProperties = {
   position: 'absolute',
   top: 'calc(100% + 4px)',

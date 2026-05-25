@@ -23,7 +23,6 @@ export const Editor: React.FC = () => {
 
   const [activeTab, setActiveTab] = React.useState<EditorTab>(getTabFromPath());
   const [commentEntityId, setCommentEntityId] = React.useState('');
-  const [isPublished, setIsPublished] = React.useState(false);
 
   // Sync tab from URL changes (e.g. browser back/forward)
   React.useEffect(() => {
@@ -36,33 +35,22 @@ export const Editor: React.FC = () => {
   // Listen for save events from Create to update the comment entity ID
   React.useEffect(() => {
     const handleSaved = (event: Event) => {
-      const detail = (event as CustomEvent<{ contentId: string; displayName: string; isPublished?: boolean }>).detail;
+      const detail = (event as CustomEvent<{ contentId: string; displayName: string }>).detail;
       if (detail?.contentId) {
         setCommentEntityId(detail.contentId);
         // Update URL to include contentId so page reload returns to this document
         history.replace(`/creatives/email/create/${detail.contentId}`);
       }
-      if (detail?.isPublished !== undefined) {
-        setIsPublished(detail.isPublished);
-      }
-    };
-    const handlePublishChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ isPublished: boolean }>).detail;
-      setIsPublished(detail.isPublished);
     };
     window.addEventListener('emailEditor:saved', handleSaved);
-    window.addEventListener('emailEditor:publishChanged', handlePublishChanged);
 
     const raw = sessionStorage.getItem('emailEditor:commentEntityId');
     if (raw) setCommentEntityId(raw);
-    const pub = sessionStorage.getItem('emailEditor:isPublished');
-    if (pub === 'true') setIsPublished(true);
 
     return () => {
       window.removeEventListener('emailEditor:saved', handleSaved);
-      window.removeEventListener('emailEditor:publishChanged', handlePublishChanged);
     };
-  }, []);
+  }, [history]);
 
   const handleTabSelect = (_event: SelectTabEvent, data: SelectTabData) => {
     const newTab = data.value as EditorTab;
