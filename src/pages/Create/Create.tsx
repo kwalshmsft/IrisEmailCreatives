@@ -72,7 +72,7 @@ function htmlToPlainText(html: string): string {
 }
 
 type EditorTab = 'visual' | 'html' | 'plaintext';
-type PreviewWidth = 0 | 768 | 375;
+type PreviewWidth = 0 | 660 | 768 | 375;
 
 interface SavedContentRef {
   contentId: string;
@@ -2105,7 +2105,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
                       style={previewWidth === option.value ? pageStyles.tabButtonActive : pageStyles.tabButton}
                       onClick={() => {
                         setPreviewWidth(option.value);
-                        if (previewClient === 'outlook-desktop' && option.value !== 0) setPreviewClient('standard');
+                        if (previewClient === 'outlook-desktop' && option.value !== 660) setPreviewClient('standard');
                         if (previewClient === 'ios-mail' && option.value === 0) setPreviewClient('standard');
                       }}
                     >
@@ -2122,7 +2122,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
                       style={previewClient === client.id ? pageStyles.tabButtonActive : pageStyles.tabButton}
                       onClick={() => {
                         setPreviewClient(client.id);
-                        if (client.id === 'outlook-desktop') setPreviewWidth(0);
+                        if (client.id === 'outlook-desktop') setPreviewWidth(660);
                         else if (client.id === 'ios-mail') setPreviewWidth(375);
                       }}
                       title={client.description}
