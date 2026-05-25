@@ -1,7 +1,7 @@
 import React from 'react';
 import { useHistory } from 'react-router-dom';
 import { ContentGalleryEntry, galleryDbService, CONTENT_TAXONOMY } from '../../services/galleryDbService';
-import { DocumentAdd20Regular, ArrowUpload20Regular, DismissRegular, FilterRegular, DeleteRegular } from '@fluentui/react-icons';
+import { DocumentAdd20Regular, ArrowUpload20Regular, DismissRegular, FilterRegular, DeleteRegular, CopyRegular } from '@fluentui/react-icons';
 import ConfirmationDialog from '../../components/ConfirmationDialog/ConfirmationDialog';
 
 type SortField = 'name' | 'product' | 'updatedBy' | 'lastUpdated' | 'status';
@@ -45,14 +45,13 @@ const pageStyles: Record<string, React.CSSProperties> = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 6,
-    padding: '6px 12px',
-    border: '1px solid #8a8886',
-    borderRadius: 4,
-    backgroundColor: '#ffffff',
+    padding: 0,
+    border: 'none',
+    background: 'none',
     color: '#323130',
     cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
+    fontSize: 14,
+    fontWeight: 400,
   },
   chip: {
     display: 'inline-flex',
@@ -121,7 +120,7 @@ const pageStyles: Record<string, React.CSSProperties> = {
   filterDropdown: {
     position: 'absolute',
     top: '100%',
-    left: 0,
+    right: 0,
     marginTop: 4,
     backgroundColor: '#ffffff',
     border: '1px solid #e1dfdd',
@@ -142,12 +141,12 @@ const formatDate = (value: string) =>
 
 const getStatusStyle = (status: string): React.CSSProperties => {
   if (status === 'Published') {
-    return { ...pageStyles.statusBadge, backgroundColor: '#dff6dd', color: '#107c10' };
+    return { fontSize: 13, color: '#107c10' };
   }
   if (status === 'Draft') {
-    return { ...pageStyles.statusBadge, backgroundColor: '#f3f2f1', color: '#605e5c' };
+    return { fontSize: 13, color: '#605e5c' };
   }
-  return { ...pageStyles.statusBadge, backgroundColor: '#fff4ce', color: '#8a6d00' };
+  return { fontSize: 13, color: '#8a6d00' };
 };
 
 const getEntryStatus = (entry: ContentGalleryEntry): string =>
@@ -161,6 +160,7 @@ export const Gallery: React.FC = () => {
   const [filterStatus, setFilterStatus] = React.useState<string | null>(null);
   const [showFilterPanel, setShowFilterPanel] = React.useState(false);
   const [deleteTarget, setDeleteTarget] = React.useState<ContentGalleryEntry | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const filterRef = React.useRef<HTMLDivElement>(null);
   const uploadInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -238,6 +238,59 @@ export const Gallery: React.FC = () => {
     setDeleteTarget(null);
   };
 
+  const handleClone = async (entry: ContentGalleryEntry) => {
+    const newId = await galleryDbService.generateContentId();
+    const cloned: ContentGalleryEntry = {
+      ...entry,
+      contentId: newId,
+      displayName: `${entry.displayName} - copy`,
+      lastModifiedUtc: new Date().toISOString(),
+      published: false,
+      publishedAtUtc: undefined,
+    };
+    await galleryDbService.saveEntry(cloned);
+    setEntries((prev) => [cloned, ...prev]);
+  };
+
+  const toggleSelection = (contentId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(contentId)) next.delete(contentId);
+      else next.add(contentId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sortedEntries.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedEntries.map((e) => e.contentId)));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 1) {
+      const entry = entries.find((e) => selectedIds.has(e.contentId));
+      if (entry) setDeleteTarget(entry);
+    } else if (selectedIds.size > 1) {
+      // Delete all selected
+      void (async () => {
+        for (const id of selectedIds) {
+          await galleryDbService.deleteEntry(id);
+        }
+        setEntries((prev) => prev.filter((e) => !selectedIds.has(e.contentId)));
+        setSelectedIds(new Set());
+      })();
+    }
+  };
+
+  const handleCloneSelected = () => {
+    if (selectedIds.size !== 1) return;
+    const entry = entries.find((e) => selectedIds.has(e.contentId));
+    if (entry) void handleClone(entry);
+  };
+
   const handleNewCreative = () => {
     history.push('/creatives/email/create');
   };
@@ -278,7 +331,16 @@ export const Gallery: React.FC = () => {
       </div>
 
       {/* Action bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '12px 16px', border: '1px solid #e1dfdd', borderRadius: 4, backgroundColor: '#ffffff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '12px 16px', border: '1px solid #e1dfdd', borderRadius: 4, backgroundColor: '#ffffff' }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: '#605e5c' }}>
+          <input
+            type="checkbox"
+            checked={sortedEntries.length > 0 && selectedIds.size === sortedEntries.length}
+            onChange={toggleSelectAll}
+            style={{ cursor: 'pointer' }}
+          />
+          {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
+        </label>
         <button
           type="button"
           onClick={handleNewCreative}
@@ -293,44 +355,51 @@ export const Gallery: React.FC = () => {
         >
           <ArrowUpload20Regular /> Upload HTML
         </button>
-      </div>
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept=".html,.htm"
-        style={{ display: 'none' }}
-        onChange={handleUploadFile}
-      />
-
-      <div style={pageStyles.card}>
-        {/* Filter bar */}
-        <div style={pageStyles.filterBar}>
-          <div style={{ position: 'relative' }} ref={filterRef}>
+        {selectedIds.size > 0 && (
+          <>
+            {selectedIds.size === 1 && (
+              <button
+                type="button"
+                onClick={handleCloneSelected}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', color: '#0078d4', cursor: 'pointer', fontSize: 14, fontWeight: 400, padding: 0 }}
+              >
+                <CopyRegular /> Clone Creative
+              </button>
+            )}
             <button
               type="button"
-              style={pageStyles.filterButton}
-              onClick={() => setShowFilterPanel(!showFilterPanel)}
+              onClick={handleDeleteSelected}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', color: '#a4262c', cursor: 'pointer', fontSize: 14, fontWeight: 400, padding: 0 }}
             >
-              <FilterRegular style={{ fontSize: 14 }} /> Filters
+              <DeleteRegular /> Delete Creative{selectedIds.size > 1 ? 's' : ''}
             </button>
-            {showFilterPanel && (
-              <div style={pageStyles.filterDropdown}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: '#323130' }}>Status</label>
-                  <select
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #8a8886', fontSize: 13 }}
-                    value={filterStatus || ''}
-                    onChange={(e) => { setFilterStatus(e.target.value || null); setShowFilterPanel(false); }}
-                  >
-                    <option value="">All statuses</option>
-                    <option value="Published">Published</option>
-                    <option value="Draft">Draft</option>
-                  </select>
-                </div>
+          </>
+        )}
+        {/* Filters — aligned right */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }} ref={filterRef}>
+          <button
+            type="button"
+            style={pageStyles.filterButton}
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+          >
+            <FilterRegular style={{ fontSize: 14, color: '#0078d4' }} /> Filters
+          </button>
+          {showFilterPanel && (
+            <div style={pageStyles.filterDropdown}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: '#323130' }}>Status</label>
+                <select
+                  style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #8a8886', fontSize: 13 }}
+                  value={filterStatus || ''}
+                  onChange={(e) => { setFilterStatus(e.target.value || null); setShowFilterPanel(false); }}
+                >
+                  <option value="">All statuses</option>
+                  <option value="Published">Published</option>
+                  <option value="Draft">Draft</option>
+                </select>
               </div>
-            )}
-          </div>
-
+            </div>
+          )}
           {hasFilters && (
             <>
               <span style={{ fontSize: 13, color: '#605e5c' }}>filtered by</span>
@@ -345,12 +414,30 @@ export const Gallery: React.FC = () => {
             </>
           )}
         </div>
+      </div>
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept=".html,.htm"
+        style={{ display: 'none' }}
+        onChange={handleUploadFile}
+      />
 
+      <div style={pageStyles.card}>
         {/* Table */}
         {sortedEntries.length > 0 ? (
           <table style={pageStyles.table}>
             <thead>
               <tr>
+                <th style={{ ...pageStyles.th, width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={sortedEntries.length > 0 && selectedIds.size === sortedEntries.length}
+                    onChange={toggleSelectAll}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ cursor: 'pointer' }}
+                  />
+                </th>
                 <th style={pageStyles.th} onClick={() => handleSort('name')}>
                   Name{renderSortIndicator('name')}
                 </th>
@@ -366,12 +453,20 @@ export const Gallery: React.FC = () => {
                 <th style={pageStyles.th} onClick={() => handleSort('status')}>
                   Status{renderSortIndicator('status')}
                 </th>
-                <th style={{ ...pageStyles.th, width: 40 }}></th>
               </tr>
             </thead>
             <tbody>
               {sortedEntries.map((entry) => (
-                <tr key={entry.contentId} style={{ cursor: 'pointer' }} onClick={() => handleOpen(entry)}>
+                <tr key={entry.contentId} style={{ cursor: 'pointer', background: selectedIds.has(entry.contentId) ? '#f3f9fd' : undefined }} onClick={() => handleOpen(entry)}>
+                  <td style={pageStyles.td}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(entry.contentId)}
+                      onChange={() => toggleSelection(entry.contentId)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </td>
                   <td style={pageStyles.td}>
                     <span style={pageStyles.nameLink}>{entry.displayName}</span>
                     <div style={pageStyles.subText}>ID: {entry.contentId}</div>
@@ -381,16 +476,6 @@ export const Gallery: React.FC = () => {
                   <td style={pageStyles.td}>{formatDate(entry.lastModifiedUtc)}</td>
                   <td style={pageStyles.td}>
                     <span style={getStatusStyle(getEntryStatus(entry))}>{getEntryStatus(entry)}</span>
-                  </td>
-                  <td style={pageStyles.td}>
-                    <button
-                      type="button"
-                      title="Delete"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(entry); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a4262c', padding: 4, display: 'inline-flex' }}
-                    >
-                      <DeleteRegular />
-                    </button>
                   </td>
                 </tr>
               ))}

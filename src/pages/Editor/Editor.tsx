@@ -1,11 +1,10 @@
 import React from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { TabList, Tab, SelectTabEvent, SelectTabData } from '@fluentui/react-components';
-import { ArrowLeftRegular, ChevronLeftRegular, ChevronRightRegular } from '@fluentui/react-icons';
+import { ArrowLeftRegular } from '@fluentui/react-icons';
 import { Create } from '../Create/Create';
 import { Localize } from '../Localize/Localize';
 import { HowTo } from '../HowTo/HowTo';
-import { Comments } from '../Comments/Comments';
 
 type EditorTab = 'create' | 'export' | 'howto';
 
@@ -23,7 +22,6 @@ export const Editor: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = React.useState<EditorTab>(getTabFromPath());
-  const [showComments, setShowComments] = React.useState(false);
   const [commentEntityId, setCommentEntityId] = React.useState('');
   const [isPublished, setIsPublished] = React.useState(false);
 
@@ -46,13 +44,11 @@ export const Editor: React.FC = () => {
       }
       if (detail?.isPublished !== undefined) {
         setIsPublished(detail.isPublished);
-        if (detail.isPublished) setShowComments(false);
       }
     };
     const handlePublishChanged = (event: Event) => {
       const detail = (event as CustomEvent<{ isPublished: boolean }>).detail;
       setIsPublished(detail.isPublished);
-      if (detail.isPublished) setShowComments(false);
     };
     window.addEventListener('emailEditor:saved', handleSaved);
     window.addEventListener('emailEditor:publishChanged', handlePublishChanged);
@@ -86,7 +82,7 @@ export const Editor: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Editor header with back button and tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #edebe9', padding: '0 16px', gap: 12, backgroundColor: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12, backgroundColor: '#fff' }}>
         <button
           type="button"
           onClick={handleBack}
@@ -113,51 +109,13 @@ export const Editor: React.FC = () => {
         </TabList>
       </div>
 
-      {/* Tab content + comments panel */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div style={{ flex: 1, overflow: 'auto' }}>
+      {/* Tab content */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div style={{ height: '100%', overflow: 'auto' }}>
           {activeTab === 'create' && <Create contentIdFromUrl={contentId} />}
           {activeTab === 'export' && <Localize />}
           {activeTab === 'howto' && <HowTo />}
         </div>
-
-        {/* Comments — collapsed vertical tab or expanded panel (only for drafts) */}
-        {!showComments ? (
-          <div
-            onClick={() => setShowComments(true)}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              width: 32,
-              flexShrink: 0,
-              borderLeft: '1px solid #edebe9',
-              backgroundColor: '#faf9f8',
-              cursor: 'pointer',
-              paddingTop: 12,
-              fontFamily: '"Segoe UI", sans-serif',
-            }}
-            title="Open comments"
-          >
-            <ChevronLeftRegular style={{ fontSize: 14, color: '#605e5c', marginBottom: 12 }} />
-            <span style={{
-              writingMode: 'vertical-lr',
-              transform: 'rotate(180deg)',
-              fontSize: 12,
-              color: '#323130',
-              fontWeight: 500,
-            }}>
-              Comments (0)
-            </span>
-          </div>
-        ) : (
-          <div style={{ width: 300, borderLeft: '1px solid #edebe9', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-            {/* Panel body — Comments component handles its own header */}
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              <Comments entityId={commentEntityId} readOnly={isPublished || !commentEntityId} onCollapse={() => setShowComments(false)} />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

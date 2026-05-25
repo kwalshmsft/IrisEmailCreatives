@@ -228,13 +228,12 @@ export const galleryDbService = {
 
   async deleteEntry(contentId: string): Promise<void> {
     const apiResult = await apiFetch<null>(`/entries/${contentId}`, { method: 'DELETE' });
-    if (apiResult === null && !navigator.onLine) {
-      // Only fall back to IndexedDB delete if truly offline
-      const entries = await readEntries();
-      const migrated = migrateIfNeeded(entries);
-      const filtered = migrated.filter((entry) => entry.contentId !== contentId);
+    // Always clean IndexedDB to avoid stale entries showing up
+    const entries = await readEntries();
+    const migrated = migrateIfNeeded(entries);
+    const filtered = migrated.filter((entry) => entry.contentId !== contentId);
+    if (filtered.length !== migrated.length) {
       await writeEntries(filtered);
-      return;
     }
   },
 };

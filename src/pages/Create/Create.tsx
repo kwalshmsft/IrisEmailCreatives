@@ -7,10 +7,11 @@ import { ContentGalleryEntry, galleryDbService, CONTENT_TAXONOMY } from '../../s
 import { editorVisibilityService } from '../../services/editorVisibilityService';
 import { EmailClient, EMAIL_CLIENTS, EMAIL_CLIENT_NOTICES, emailClientSimulatorService } from '../../services/emailClientSimulatorService';
 import { ResponsiveIssue, responsiveAnalyzerService } from '../../services/responsiveAnalyzerService';
-import { GlobeRegular, EditRegular, SaveRegular, DeleteRegular, LockClosedRegular, LockOpenRegular, CheckmarkCircleRegular, PhoneLaptopRegular, ImageAddRegular, ArrowUploadRegular, ArrowDownloadRegular, ChevronDownRegular, ChevronRightRegular } from '@fluentui/react-icons';
+import { GlobeRegular, EditRegular, SaveRegular, DeleteRegular, LockClosedRegular, LockOpenRegular, CheckmarkCircleRegular, PhoneLaptopRegular, ImageAddRegular, ArrowUploadRegular, ArrowDownloadRegular, ChevronDownRegular, ChevronRightRegular, BrightnessHighRegular, ChevronLeftRegular } from '@fluentui/react-icons';
 import { Combobox, Option, Dialog, DialogSurface, DialogTitle, DialogBody, DialogContent, DialogActions, Button, Input } from '@fluentui/react-components';
 import ConfirmationDialog from '../../components/ConfirmationDialog/ConfirmationDialog';
 import { isRtlLocale, transformForPublish } from '../../services/rtlService';
+import { Comments } from '../Comments/Comments';
 
 const LOCALE_OPTIONS = [
   'en-US', 'en-GB', 'de-DE', 'fr-FR', 'es-ES', 'it-IT', 'pt-BR',
@@ -109,7 +110,7 @@ const pageStyles: Record<string, React.CSSProperties> = {
   page: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 16,
+    gap: 8,
     fontFamily: 'Segoe UI, sans-serif',
     fontSize: 14,
   },
@@ -415,12 +416,17 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
   );
   const [htmlModifiedSincePlainText, setHtmlModifiedSincePlainText] = React.useState(false);
   const localeAssetsRef = React.useRef<import('../../services/galleryDbService').LocaleAssetData[]>(initialEntry?.localeAssets ?? []);
+  const [localeAssetsVersion, setLocaleAssetsVersion] = React.useState(0);
+  // Snapshot that triggers re-render in children when locale data changes
+  const localeAssetsSnapshot = React.useMemo(() => localeAssetsRef.current, [localeAssetsVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleLocaleDataChange = React.useCallback((data: import('../../services/galleryDbService').LocaleAssetData[]) => {
     localeAssetsRef.current = data;
+    setLocaleAssetsVersion((v) => v + 1);
   }, []);
 
   // Active editing locale: null = source locale, string = editing a translation
   const [activeEditingLocale, setActiveEditingLocale] = React.useState<string | null>(null);
+  const [showCopyFromPrompt, setShowCopyFromPrompt] = React.useState(false);
   const sourceContentRef = React.useRef<{ html: string; subject: string; plainText: string } | null>(null);
 
   React.useEffect(() => {
@@ -913,7 +919,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
     } else {
       // Switching to a translation locale
       const asset = localeAssetsRef.current.find((d) => d.locale === targetLocale);
-      const targetHtml = asset?.html || htmlContentRef.current;
+      const targetHtml = asset?.html || '';
       const targetSubject = asset?.subject || '';
       const targetPlainText = asset?.plainText || '';
       setHtmlContent(targetHtml);
@@ -926,6 +932,37 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
 
     setActiveEditingLocale(targetLocale);
     htmlFromVisualRef.current = false;
+
+    // Show copy-from prompt if switching to an empty locale
+    if (targetLocale !== null) {
+      const asset = localeAssetsRef.current.find((d) => d.locale === targetLocale);
+      setShowCopyFromPrompt(!asset?.html);
+    } else {
+      setShowCopyFromPrompt(false);
+    }
+  };
+
+  const copyFromLocale = (sourceLocale: string | null) => {
+    let html: string, subject: string, plainText: string;
+    if (sourceLocale === null) {
+      // Copy from source locale
+      const src = sourceContentRef.current || { html: initialHtml, subject: initialEntry ? extractTitle(initialEntry.htmlContent) : '', plainText: initialEntry?.plainTextContent || '' };
+      html = src.html;
+      subject = src.subject;
+      plainText = src.plainText;
+    } else {
+      const asset = localeAssetsRef.current.find((d) => d.locale === sourceLocale);
+      html = asset?.html || '';
+      subject = asset?.subject || '';
+      plainText = asset?.plainText || '';
+    }
+    setHtmlContent(html);
+    htmlContentRef.current = html;
+    setSubjectLine(subject);
+    subjectLineRef.current = subject;
+    setPlainTextContent(plainText);
+    lastWrittenToEditorRef.current = '';
+    setShowCopyFromPrompt(false);
   };
 
   const switchTab = (nextTab: EditorTab) => {
@@ -1050,6 +1087,12 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
   // Upload Image stub — will integrate with blob storage service
   const [uploadImageDialog, setUploadImageDialog] = React.useState<{ isOpen: boolean; file: File | null; uploading: boolean; resultUrl: string }>({ isOpen: false, file: null, uploading: false, resultUrl: '' });
   const uploadImageInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Placeholder dialogs
+  const [showTestEmailActionsDialog, setShowTestEmailActionsDialog] = React.useState(false);
+  const [showIrisCopilotDialog, setShowIrisCopilotDialog] = React.useState(false);
+  const [showViewHistoryDialog, setShowViewHistoryDialog] = React.useState(false);
+  const [showComments, setShowComments] = React.useState(false);
 
   const handleUploadImage = () => {
     setUploadImageDialog({ isOpen: true, file: null, uploading: false, resultUrl: '' });
@@ -1189,6 +1232,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
   };
 
 
+
   const handleOpenEntry = (entry: ContentGalleryEntry) => {
     // Cancel any pending visual-sync so stale iframe content doesn't overwrite the new HTML
     if (visualSyncTimeoutRef.current !== null) {
@@ -1210,6 +1254,10 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
     setIsPublished(!!entry.published);
     setPlainTextContent(entry.plainTextContent || '');
     setPlainTextGeneratedAt(entry.plainTextGeneratedAtUtc ? new Date(entry.plainTextGeneratedAtUtc) : null);
+    localeAssetsRef.current = entry.localeAssets ?? [];
+    setLocaleAssetsVersion((v) => v + 1);
+    setActiveEditingLocale(null);
+    setShowCopyFromPrompt(false);
     setIsDirty(false);
     setShowUploadHtmlOption(false);
     lastWrittenToEditorRef.current = '';
@@ -1593,10 +1641,44 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
           <CheckmarkCircleRegular style={{ marginRight: 6 }} />{toastMessage}
         </div>
       ) : null}
-      <div>
-        <h1 style={{ margin: '12px 0 16px 0', fontSize: 24, fontWeight: 600, fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" }}>Iris Email Editor</h1>
-        <p style={{ margin: 0, color: '#605e5c', lineHeight: 1.5 }}>Create, revise, review, localize and publish email content for Iris Exchange Delivery campaigns.</p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ margin: '12px 0 16px 0', fontSize: 24, fontWeight: 600, fontFamily: "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif" }}>Iris Email Editor</h1>
+          <p style={{ margin: 0, color: '#605e5c', lineHeight: 1.5 }}>Create, revise, review, localize and publish email content for Iris Exchange Delivery campaigns.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowViewHistoryDialog(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            border: '1px solid #8a8886',
+            background: '#fff',
+            color: '#323130',
+            cursor: 'pointer',
+            fontSize: 13,
+            fontWeight: 500,
+            padding: '6px 12px',
+            borderRadius: 4,
+            marginTop: 12,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <BrightnessHighRegular style={{ fontSize: 16 }} /> View history
+        </button>
       </div>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 0, justifyContent: 'flex-end' }}>
+        <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#323130', padding: 0 }} onClick={() => setShowTestEmailActionsDialog(true)}>
+          <span style={{ fontSize: 16 }}>✉</span> Send Test Email
+        </button>
+        <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#323130', padding: 0 }} onClick={() => setShowIrisCopilotDialog(true)}>
+          <img src="/copilot-new.png" alt="" style={{ width: 16, height: 16 }} /> Iris Copilot beta
+        </button>
+      </div>
+      <hr style={{ border: 'none', borderTop: '1px solid #edebe9', margin: '4px 0' }} />
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'auto' }}>
       <div style={pageStyles.indicatorBar}>
         <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
           <span style={{ color: '#605e5c' }}>Working on: </span>
@@ -1746,7 +1828,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
       <div style={pageStyles.card}>
         <div style={pageStyles.cardBody}>
           {/* Locale switcher */}
-          {localeAssetsRef.current.some((d) => d.html) && (
+          {localeAssetsRef.current.length > 0 && (
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
               <GlobeRegular style={{ fontSize: 14, color: '#605e5c' }} />
               <button
@@ -1765,7 +1847,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
               >
                 {currentLocale || 'Source'} ★
               </button>
-              {localeAssetsRef.current.filter((d) => d.html).map((d) => (
+              {localeAssetsRef.current.map((d) => (
                 <button
                   key={d.locale}
                   type="button"
@@ -1779,11 +1861,41 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
                     color: activeEditingLocale === d.locale ? '#0078d4' : '#323130',
                     fontWeight: activeEditingLocale === d.locale ? 600 : 400,
                     cursor: 'pointer',
+                    opacity: d.html ? 1 : 0.6,
                   }}
+                >
+                  {d.locale}{!d.html && ' ○'}
+                </button>
+              ))}
+            </div>
+          )}
+          {showCopyFromPrompt && activeEditingLocale && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, padding: '8px 12px', background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 4, fontSize: 13 }}>
+              <span style={{ color: '#6d4c00' }}>This locale is empty. Copy content from:</span>
+              <button
+                type="button"
+                onClick={() => copyFromLocale(null)}
+                style={{ padding: '2px 8px', fontSize: 12, border: '1px solid #e1dfdd', borderRadius: 3, background: '#fff', cursor: 'pointer' }}
+              >
+                {currentLocale || 'Source'} ★
+              </button>
+              {localeAssetsRef.current.filter((d) => d.html && d.locale !== activeEditingLocale).map((d) => (
+                <button
+                  key={d.locale}
+                  type="button"
+                  onClick={() => copyFromLocale(d.locale)}
+                  style={{ padding: '2px 8px', fontSize: 12, border: '1px solid #e1dfdd', borderRadius: 3, background: '#fff', cursor: 'pointer' }}
                 >
                   {d.locale}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setShowCopyFromPrompt(false)}
+                style={{ marginLeft: 'auto', padding: '2px 8px', fontSize: 12, border: 'none', background: 'transparent', cursor: 'pointer', color: '#605e5c' }}
+              >
+                ✕
+              </button>
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
@@ -1952,7 +2064,7 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
         </div>
       </div>
 
-      <LocaleAssets htmlContent={htmlContent} sourceLocale={currentLocale} displayName={savedLocationRef.current?.displayName} initialLocaleData={initialEntry?.localeAssets} onLocaleDataChange={handleLocaleDataChange} onSaveRequested={saveNow} />
+      <LocaleAssets htmlContent={htmlContent} sourceLocale={currentLocale} displayName={savedLocationRef.current?.displayName} initialLocaleData={localeAssetsSnapshot} onLocaleDataChange={handleLocaleDataChange} onSaveRequested={saveNow} />
 
       {htmlContent.trim() ? (
         <div style={pageStyles.card}>
@@ -2187,10 +2299,55 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
       />
 
       {/* Save Dialog */}
+      {/* Send Test Email Dialog */}
+      <Dialog open={showTestEmailActionsDialog} onOpenChange={(_, data) => { if (!data.open) setShowTestEmailActionsDialog(false); }}>
+        <DialogSurface>
+          <DialogTitle>Send Test Email <span style={{ background: '#ffaa44', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, marginLeft: 8, verticalAlign: 'middle' }}>to be implemented</span></DialogTitle>
+          <DialogBody>
+            <DialogContent>
+              <p style={{ color: '#605e5c', fontSize: 13 }}>This feature will allow you to test email actions such as send, preview in client, and validate links.</p>
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setShowTestEmailActionsDialog(false)}>Close</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      {/* Iris Copilot Dialog */}
+      <Dialog open={showIrisCopilotDialog} onOpenChange={(_, data) => { if (!data.open) setShowIrisCopilotDialog(false); }}>
+        <DialogSurface>
+          <DialogTitle>Iris Copilot beta <span style={{ background: '#ffaa44', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, marginLeft: 8, verticalAlign: 'middle' }}>to be implemented</span></DialogTitle>
+          <DialogBody>
+            <DialogContent>
+              <p style={{ color: '#605e5c', fontSize: 13 }}>Iris Copilot will provide AI-assisted suggestions for email content, subject lines, and layout optimization.</p>
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setShowIrisCopilotDialog(false)}>Close</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      {/* View History Dialog */}
+      <Dialog open={showViewHistoryDialog} onOpenChange={(_, data) => { if (!data.open) setShowViewHistoryDialog(false); }}>
+        <DialogSurface>
+          <DialogTitle>View History <span style={{ background: '#ffaa44', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, marginLeft: 8, verticalAlign: 'middle' }}>to be implemented</span></DialogTitle>
+          <DialogBody>
+            <DialogContent>
+              <p style={{ color: '#605e5c', fontSize: 13 }}>This feature will show the revision history for this document, including who made changes and when.</p>
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setShowViewHistoryDialog(false)}>Close</Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
       {/* Upload Image Dialog */}
       <Dialog open={uploadImageDialog.isOpen} onOpenChange={(_, data) => { if (!data.open) setUploadImageDialog({ isOpen: false, file: null, uploading: false, resultUrl: '' }); }}>
         <DialogSurface>
-          <DialogTitle>Upload Image</DialogTitle>
+          <DialogTitle>Upload Image <span style={{ background: '#ffaa44', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, marginLeft: 8, verticalAlign: 'middle' }}>to be implemented</span></DialogTitle>
           <DialogBody>
             <DialogContent>
               {!uploadImageDialog.resultUrl ? (
@@ -2296,6 +2453,46 @@ export const Create: React.FC<CreateProps> = ({ contentIdFromUrl }) => {
           </div>
         </div>
       )}
+
+        </div>
+        {/* Comments panel */}
+        {!showComments ? (
+          <div
+            onClick={() => setShowComments(true)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              width: 32,
+              flexShrink: 0,
+              borderLeft: '1px solid #edebe9',
+              backgroundColor: '#faf9f8',
+              cursor: 'pointer',
+              paddingTop: 12,
+              fontFamily: '"Segoe UI", sans-serif',
+            }}
+            title="Open comments"
+          >
+            <ChevronLeftRegular style={{ fontSize: 14, color: '#605e5c', marginBottom: 12 }} />
+            <span style={{
+              writingMode: 'vertical-lr',
+              transform: 'rotate(180deg)',
+              fontSize: 12,
+              color: '#323130',
+              fontWeight: 500,
+            }}>
+              Comments (0)
+            </span>
+          </div>
+        ) : (
+          <div style={{ width: 300, borderLeft: '1px solid #edebe9', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <Comments entityId={savedLocation?.contentId || ''} readOnly={isPublished || !savedLocation?.contentId} onCollapse={() => setShowComments(false)} />
+            </div>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 };

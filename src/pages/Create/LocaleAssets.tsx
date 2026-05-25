@@ -223,6 +223,17 @@ export const LocaleAssets: React.FC<LocaleAssetsProps> = ({ htmlContent, sourceL
   const [localeFilter, setLocaleFilter] = React.useState('');
   const [pickerSelections, setPickerSelections] = React.useState<string[]>([]);
   const [localeData, setLocaleData] = React.useState<LocaleData[]>(initialLocaleData ?? []);
+
+  // Sync when parent reloads a different document
+  const prevInitialRef = React.useRef(initialLocaleData);
+  React.useEffect(() => {
+    if (initialLocaleData !== prevInitialRef.current) {
+      prevInitialRef.current = initialLocaleData;
+      const data = initialLocaleData ?? [];
+      setLocaleData(data);
+      setSelectedLocales(data.map((d) => d.locale));
+    }
+  }, [initialLocaleData]);
   const [collapsed, setCollapsed] = React.useState(true);
   const csvInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -308,9 +319,10 @@ export const LocaleAssets: React.FC<LocaleAssetsProps> = ({ htmlContent, sourceL
       .map((locale) => {
         // If we already have data for this locale, include it
         const existing = localeData.find((d) => d.locale === locale);
-        if (existing) {
+        if (existing && existing.html) {
           const existingStrings = htmlLocalizationService.extractStrings(existing.html);
-          return [locale, ...existingStrings.map((s) => s.value)].map(escapeCsvValue).join(',');
+          const existingMap = new Map(existingStrings.map((s) => [s.key, s.value]));
+          return [locale, ...strings.map((s) => existingMap.get(s.key) ?? '')].map(escapeCsvValue).join(',');
         }
         return [locale, ...strings.map(() => '')].map(escapeCsvValue).join(',');
       });
@@ -369,30 +381,29 @@ export const LocaleAssets: React.FC<LocaleAssetsProps> = ({ htmlContent, sourceL
       let localeSubject = '';
       keys.forEach((key, col) => {
         const value = (row[col + 1] ?? '').trim();
-        if (value) {
-          if (key === 'subject') {
-            localeSubject = value;
-          } else {
-            translations[key] = value;
-          }
+        if (key === 'subject') {
+          localeSubject = value;
+        } else if (value) {
+          translations[key] = value;
         }
       });
 
-      // Only process if there are actual translations
-      if (Object.keys(translations).length === 0 && !localeSubject) continue;
-
-      const localizedHtml = htmlLocalizationService.generateLocalizedHtml(htmlContent, strings, translations);
-      const plainText = htmlToPlainText(localizedHtml);
+      const localizedHtml = Object.keys(translations).length > 0
+        ? htmlLocalizationService.generateLocalizedHtml(htmlContent, strings, translations)
+        : '';
+      const plainText = localizedHtml ? htmlToPlainText(localizedHtml) : '';
 
       newLocaleData.push({ locale, subject: localeSubject, html: localizedHtml, plainText });
-
-      // Add to selected locales if not already there
-      if (!selectedLocales.includes(locale)) {
-        setSelectedLocales((prev) => [...prev, locale].sort());
-      }
     }
 
     if (newLocaleData.length > 0) {
+      // Add any new locales to the selected list
+      const newLocales = newLocaleData.map((d) => d.locale);
+      setSelectedLocales((prev) => {
+        const combined = new Set([...prev, ...newLocales]);
+        return [...combined].sort();
+      });
+
       // Compute merged data synchronously so we can pass it to parent immediately
       const computeMerged = (prev: LocaleData[]) => {
         const merged = [...prev];
@@ -460,8 +471,8 @@ export const LocaleAssets: React.FC<LocaleAssetsProps> = ({ htmlContent, sourceL
         {/* Selected locales summary */}
         {selectedLocales.length > 0 && (
           <div style={{ marginBottom: 12, fontSize: 13, color: '#605e5c' }}>
-            {selectedLocales.length} locale(s) selected
-            {localeData.filter((d) => d.html).length > 0 && ` · ${localeData.filter((d) => d.html).length} translated`}
+            {selectedLocales.length + 1} locale(s) selected
+            {localeData.filter((d) => d.html).length > 0 && ` · ${localeData.filter((d) => d.html).length} localized`}
           </div>
         )}
 
