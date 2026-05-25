@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# utility scripts
+keep-awake.ps1
+
 # dependencies
 /node_modules
 /.pnp

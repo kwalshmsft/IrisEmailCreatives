@@ -25,6 +25,7 @@ export interface ResponsiveIssue {
     | 'unsupported-css-position'
     | 'external-stylesheets'
     | 'relative-local-images'
+    | 'missing-external-class'
     | 'file-size-warning';
   detail: string;
   element: string;
@@ -264,6 +265,19 @@ export const responsiveAnalyzerService = {
         element: 'multiple',
         fix: 'Add table-based fallback or MSO conditional.',
         fixDetail: 'Outlook renders flex/grid as block. Consider using table layout or <!--[if mso]> fallbacks.',
+      });
+    }
+
+    // Missing .ExternalClass CSS for Outlook.com
+    const allStyleText = Array.from(doc.querySelectorAll('style')).map((s) => s.textContent || '').join(' ');
+    if (!allStyleText.includes('.ExternalClass')) {
+      issues.push({
+        id: nextId(),
+        type: 'missing-external-class',
+        detail: 'Missing .ExternalClass CSS rules required by Outlook.com to prevent font size overrides.',
+        element: 'head > style',
+        fix: 'Add .ExternalClass reset CSS.',
+        fixDetail: 'Adds .ExternalClass, .ExternalClass p/div/span/td/font rules that prevent Outlook.com from increasing font sizes.',
       });
     }
 
@@ -679,6 +693,21 @@ export const responsiveAnalyzerService = {
           '}',
         ].join('\n')
       );
+    }
+
+    // Add .ExternalClass CSS for Outlook.com
+    if (shouldApply('missing-external-class')) {
+      const existingStyles = Array.from(doc.querySelectorAll('style')).map((s) => s.textContent || '').join(' ');
+      if (!existingStyles.includes('.ExternalClass')) {
+        appendUniqueStyle(
+          doc,
+          'external-class-css',
+          [
+            '.ExternalClass { width: 100%; }',
+            '.ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div { line-height: 100%; }',
+          ].join('\n')
+        );
+      }
     }
 
     let serialized = serializeDocument(html, doc);
