@@ -109,6 +109,9 @@ export const responsiveAnalyzerService = {
 
     const tables = Array.from(doc.querySelectorAll('table'));
     tables.forEach((table, index) => {
+      // Skip tables that already have responsive fix applied
+      if (table.classList.contains('responsive-table')) return;
+
       const widthAttr = table.getAttribute('width');
       const styleWidth = parsePixelWidth((table.getAttribute('style') || '').match(/width\s*:\s*([^;]+)/i)?.[1]);
 
@@ -136,6 +139,9 @@ export const responsiveAnalyzerService = {
     const tableCells = Array.from(doc.querySelectorAll('td'));
     let extraCellIssues = 0;
     tableCells.forEach((cell, index) => {
+      // Skip cells that already have responsive stacking applied
+      if (cell.classList.contains('responsive-stack')) return;
+
       const widthAttr = parsePixelWidth(cell.getAttribute('width'));
       const styleWidth = parsePixelWidth((cell.getAttribute('style') || '').match(/width\s*:\s*([^;]+)/i)?.[1]);
       const width = widthAttr ?? styleWidth;
